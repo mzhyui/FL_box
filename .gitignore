@@ -1,5 +1,7 @@
 .idea/
 data/
+*.bk/
+save_attack_ub
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
