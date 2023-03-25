@@ -136,6 +136,89 @@ def noniid(dataset, num_users, shard_per_user, rand_set_all=[]):
 
     return dict_users, rand_set_all
 
+
+            
+def noniid_unbalanced(dataset, num_users, shard_per_user, rand_set_all=[], ub_at=0, ub_users_percent=0.3):
+    """
+    Sample non-I.I.D client data from MNIST dataset
+    :param dataset:
+    :param num_users:
+    :return:
+    """
+    print("unbalanced")
+    dict_users = {i: np.array([], dtype='int64') for i in range(num_users)}
+
+    idxs_dict = {}
+    for i in range(len(dataset)):
+        label = torch.tensor(dataset.targets[i]).item()
+        if label not in idxs_dict.keys():
+            idxs_dict[label] = []
+        idxs_dict[label].append(i)
+
+    num_classes = len(np.unique(dataset.targets))
+    shard_per_class = int(shard_per_user * num_users / num_classes)
+    for label in idxs_dict.keys():
+        x = idxs_dict[label]
+        num_leftover = len(x) % shard_per_class
+        leftover = x[-num_leftover:] if num_leftover > 0 else []
+        x = np.array(x[:-num_leftover]) if num_leftover > 0 else np.array(x)
+        x = x.reshape((shard_per_class, -1))
+        x = list(x)
+
+        for i, idx in enumerate(leftover):
+            x[i] = np.concatenate([x[i], [idx]])
+        idxs_dict[label] = x
+
+    if len(rand_set_all) == 0:
+        rand_set_all = list(range(num_classes)) * shard_per_class
+        random.shuffle(rand_set_all)
+        rand_set_all = np.array(rand_set_all).reshape((num_users, -1))
+
+    for i in range(0, int(num_users*ub_users_percent)):
+        # for change_i in range(int(len(rand_set_all[i]) * 1)):
+        #     j = np.random.choice(len(rand_set_all[i]), replace=False)
+        #     if rand_set_all[i][j] != ub_at:
+        #         q = new_func(num_users, rand_set_all, ub_at, ub_users_percent, rand_set_all[i][j])
+        #     rand_set_all[i][j] = q
+        # if ub_at not in rand_set_all[i]:
+        for j in range(int(len(rand_set_all[i]) * 0.3)):
+            # new_func(num_users, rand_set_all, ub_at, ub_users_percent, rand_set_all[i][0])
+            find = 0
+            for k in range(int(num_users*ub_users_percent), num_users):
+                if find: break
+                for idx, q in enumerate(rand_set_all[k]):
+                    if q == ub_at:
+                        rand_set_all[k][idx] = rand_set_all[i][j]
+                        find = 1
+                        break
+            if find:
+                rand_set_all[i][j] = ub_at
+
+    print("test")
+    for i in range(0, int(num_users)):
+        print(i, rand_set_all[i])
+
+    # divide and assign
+    for i in range(num_users):
+        rand_set_label = rand_set_all[i]
+        rand_set = []
+        for label in rand_set_label:
+            idx = np.random.choice(len(idxs_dict[label]), replace=False)
+            rand_set.append(idxs_dict[label].pop(idx))
+        dict_users[i] = np.concatenate(rand_set)
+
+    test = []
+    for key, value in dict_users.items():
+        x = np.unique(torch.tensor(dataset.targets)[value])
+        assert(len(x)) <= shard_per_user
+        test.append(value)
+    test = np.concatenate(test)
+    assert(len(test) == len(dataset))
+    assert(len(set(list(test))) == len(dataset))
+
+    return dict_users, rand_set_all
+
+
 def noniid_replace(dataset, num_users, shard_per_user, rand_set_all=[]):
     """
     Sample non-I.I.D client data from MNIST dataset

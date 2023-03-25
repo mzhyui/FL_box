@@ -3,23 +3,53 @@
 # Python version: 3.6
 
 import argparse
+import yaml
 
 def args_parser():
     parser = argparse.ArgumentParser()
+    
     # federated arguments
-    parser.add_argument('--epochs', type=int, default=10, help="rounds of training")
+    parser.add_argument('--epochs', type=int, default=50, help="rounds of training")
     parser.add_argument('--num_users', type=int, default=100, help="number of users: K")
     parser.add_argument('--shard_per_user', type=int, default=2, help="classes per user")
-    parser.add_argument('--frac', type=float, default=0.1, help="the fraction of clients: C")
-    parser.add_argument('--local_ep', type=int, default=5, help="the number of local epochs: E")
-    parser.add_argument('--local_bs', type=int, default=10, help="local batch size: B")
+    parser.add_argument('--frac', type=float, default=0.8, help="the fraction of clients per round: C")
+    parser.add_argument('--local_ep', type=int, default=2, help="the number of local epochs: E")
+    parser.add_argument('--local_bs', type=int, default=64, help="local batch size: B")
     parser.add_argument('--bs', type=int, default=128, help="test batch size")
     parser.add_argument('--lr', type=float, default=0.01, help="learning rate")
     parser.add_argument('--momentum', type=float, default=0.5, help="SGD momentum (default: 0.5)")
     parser.add_argument('--split', type=str, default='user', help="train-test split type, user or sample")
     parser.add_argument('--grad_norm', action='store_true', help='use_gradnorm_avging')
     parser.add_argument('--local_ep_pretrain', type=int, default=0, help="the number of pretrain local ep")
-    parser.add_argument('--lr_decay', type=float, default=1.0, help="learning rate decay per round")
+    parser.add_argument('--lr_decay', type=float, default=1.0, help="learning rate decay per round, 'lr *= args.lr_decay'")
+    
+    #attack
+    parser.add_argument('--portion', type=float, default=0.3, help="the fraction of attackers")
+    parser.add_argument('--data_portion', type=float, default=0.7, help="the fraction of poison in a batch of data")
+    parser.add_argument('--start_attack', type=int, default=1, help="attack beginning epoch")
+    parser.add_argument('--label', type=int, default=8, help="attack label")
+    parser.add_argument('--no_local_save', action='store_true', help="donot keep local model")
+    parser.add_argument('--robustLR_threshold', type=float, default=4, help="robustLR_threshold")
+    parser.add_argument('--normal_save_at_mod', type=int, default=3, help="save at idx % r")
+    parser.add_argument('--pattern_choice', type=int, default=1, help="choose a pattern")
+    parser.add_argument('--pos_choice', type=list, default=[1,1], help="choose a position")
+    parser.add_argument('--local_ep_times', type=float, default=3, help="multiply local ep")
+
+    #ub & defense
+    parser.add_argument('--ub_label', type=int, default=-1, help="unbalanced at target label, -1 not to ub")
+    parser.add_argument('--ub_users_percent', type=float, default=0.3, help="unbalanced user percentage")
+    parser.add_argument('--robust', action='store_true', help='whether detect attack or not')
+    parser.add_argument('--rb_rate', type=float, default=0, help="the penalty possibility")
+    parser.add_argument('--rb_rootpth', type=str, default="rb_root", help="the rb weight path")
+    parser.add_argument('--penalty', type=float, default=0.3, help="the penalty rate, 'w *= p'")
+    parser.add_argument('--robust_range', type=list,
+                        default=[0,20], help="robust range like [0,20]")
+    
+    parser.add_argument('--clipping', action='store_true', help="do weight clipping")
+    parser.add_argument('--scale', action='store_true', help="do weight scale")
+    parser.add_argument('--rlr', action='store_true', help="robust learning rate")
+
+    parser.add_argument('--dba', action='store_true', help="dba attack")
 
     # model arguments
     parser.add_argument('--model', type=str, default='mlp', help='model name')
@@ -46,6 +76,16 @@ def args_parser():
     parser.add_argument('--load_fed', type=str, default='', help='define pretrained federated model path')
     parser.add_argument('--results_save', type=str, default='/', help='define fed results save folder')
     parser.add_argument('--start_saving', type=int, default=0, help='when to start saving models')
+    parser.add_argument('--global_saving', type=int, default=0, help='when to start saving global models')
+    parser.add_argument('--global_saving_rate', type=int, default=5, help='global saving rate')
+
+    
+    parser.add_argument('--comment', type=str, default="none", help="leave a comment")
+    parser.add_argument('--config', type=str, default="", help="load config")
 
     args = parser.parse_args()
+    if args.config:
+        with open(args.config, 'r') as f:
+            parser.set_defaults(**yaml.safe_load(f))
+            args = parser.parse_args()
     return args

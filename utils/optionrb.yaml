@@ -1,0 +1,20 @@
+epochs: 100
+num_users: 100
+frac: 0.8
+portion: 0.2
+no_local_save: False
+pattern_choice: 1
+iid: True
+
+dba: false
+dataset: cifar10
+model: resnet20
+start_attack: 15
+start_saving: 15
+
+results_save: pattern
+
+robust: True
+rb_rate: 6
+penalty: 0.3
+robust_range: [0,40]
