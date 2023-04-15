@@ -76,7 +76,7 @@ if __name__ == '__main__':
     rb_rate = args.rb_rate
     rb_rootpth = args.rb_rootpth
     pr = args.penalty
-    rb_range = args.robust_range
+    rb_range = list(range(args.robust_range[0], args.robust_range[1]))
 
     with open(os.path.join(base_dir, 'settings.txt'), 'w') as f:
         for eachArg, value in argsDict.items():
@@ -95,7 +95,10 @@ if __name__ == '__main__':
 
     for iter in range(args.epochs):
         rb_list = np.loadtxt(os.path.join(rb_rootpth, str(iter)+'.txt'))
-        print(
+        if args.debug:
+            # print("rb_list", rb_list)
+            # print("rb_range", rb_range)
+            print(
             f"current average weight: {np.mean(list(idxs_weight_dict.values()))}")
         if iter == max(rb_range):
             #idxs_weight_dict = dict(list(zip(all_users, idxs_w)))
@@ -116,10 +119,15 @@ if __name__ == '__main__':
             iter, lr, [(i, idxs_weight_dict[i]) for i in idxs_users]))
 
         # for idx in np.random.choice(norms, max(int(args.frac * len(norms)), 1), replace=False):
+
         for idx in np.intersect1d(idxs_users, norms):
             # normal
-            if iter in rb_range and rb and rb_list[idx]:
+            if (iter in rb_range) and rb and rb_list[idx]:
+                if args.debug:
+                    print(idx, "penalty")
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
+            if idxs_weight_dict[idx] < 10:
+                continue
             user_weight += idxs_weight_dict[idx]
             local = LocalUpdate(
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
@@ -154,8 +162,12 @@ if __name__ == '__main__':
         for idx in np.intersect1d(idxs_users, attackers):
             # attack
             # rb weight
-            if iter in rb_range and rb and rb_list[idx]:
+            if (iter in rb_range) and rb and rb_list[idx]:
+                if args.debug:
+                    print(idx, "penalty")
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
+            if idxs_weight_dict[idx] < 10:
+                continue
             user_weight += idxs_weight_dict[idx]
             local = LocalUpdate(
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
@@ -217,7 +229,7 @@ if __name__ == '__main__':
             net_glob.eval()
             acc_test, loss_test, correct_prediction, attack_prediction = test_img_attack_eval(
                 net_glob, dataset_test, args)
-            print('Round {:3d}, Average loss {:.3f}, Test loss {:.3f}, Test accuracy: {:.2f}, Backdoor base acc{:.2f} Backdoor target acc:{:.2f}'.format(
+            print('Round {:3d}, Average loss {:.3f}, Test loss {:.3f}, Test accuracy: {:.2f}, Backdoor base acc: {:.2f}, Backdoor target acc: {:.2f}'.format(
                 iter, loss_avg, loss_test, acc_test, correct_prediction, attack_prediction))
 
             if best_acc is None or acc_test > best_acc:
@@ -248,7 +260,8 @@ if __name__ == '__main__':
             torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
         
-        input("Wait analysis")
+        if (args.rb_wait):
+            input("Wait analysis")
 
     print('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
     best_save_path = os.path.join(
