@@ -2,6 +2,7 @@
 data/
 *.bk/
 save_attack_ub
+# *.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -12,6 +12,9 @@ from torch.utils.data import DataLoader, Dataset
 import pdb
 
 import torchvision
+
+from .backdoorpattern import pattern_tensor_dba, pattern_tensor_normal
+
 normalize_cifar = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 normalize_mnist = torchvision.transforms.Normalize((0.1307,), (0.3081,))
@@ -70,40 +73,12 @@ def test_img(net_g, datatest, args, return_probs=False, user_idx=-1):
     return accuracy, test_loss
 def test_img_attack_eval(net_g, datatest, args, return_probs=False, user_idx=-1, dba=True):
     net_g.eval()
-    pattern_tensor1: torch.Tensor = torch.tensor([
-        [1., 0., 1., 0],
-        [-10., 1., -10., 0],
-        [-10., -10., 0., 0],
-        [-10., 1., -10., 0],
-        [1., 0., 1., 0]
-        ])
-    pattern_tensor2: torch.Tensor = torch.tensor([
-        [-10., 10., 10., -10.],
-        [10., -10., -10., 10.],
-        [10., -10., -10., 10.],
-        [10., -10., -10., 10.],
-        [-10., 10., 10., -10.]
-        ])
-    pattern_tensor_dba1: torch.Tensor = torch.tensor([
-        [1., 1., 1., 1.],
-        [1., 1., 1., 1.],
-        [0., -0., 0., 0],
-        [-0., 0., -0., 0],
-        [0., 0., 0., 0]
-        ])
-    pattern_tensor_dba2: torch.Tensor = torch.tensor([
-        [0., -0., 0., 0],
-        [-0., 0., -0., 0],
-        [0., 0., 0., 0],
-        [1., 1., 1., 1.],
-        [1., 1., 1., 1.]
-        ])
     if args.dba and dba:
-        pattern_tensor = pattern_tensor_dba1+pattern_tensor_dba2
+        pattern_tensor = pattern_tensor_dba[0]+pattern_tensor_dba[1]
     elif args.dba and not dba:
         pattern_tensor = pattern_tensor_dba1
     else:
-        pattern_tensor = [pattern_tensor1,pattern_tensor2][args.pattern_choice-1]
+        pattern_tensor = pattern_tensor_normal[args.pattern_choice-1]
     # pattern_tensor = [pattern_tensor1,pattern_tensor2][args.pattern_choice-1]
     # testing
     test_loss = 0
