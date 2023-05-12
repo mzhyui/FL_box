@@ -74,6 +74,8 @@ class LocalUpdate(object):
     def train_attack_pattern(self, net, idx=-1, lr=0.1, args=None):
         if args.dba:
             pattern_tensor = pattern_tensor_dba[random.randint(0, 1)]
+        elif args.groupattack:
+            pattern_tensor = pattern_tensor_normal[idx % len(pattern_tensor_normal)]
         else:
             pattern_tensor = pattern_tensor_normal[args.pattern_choice-1]
         for batch_idx, (inputs, targets) in enumerate(self.ldr_train):

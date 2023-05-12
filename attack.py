@@ -94,7 +94,9 @@ if __name__ == '__main__':
     #print(f"assigning weight: {idxs_weight_dict}")
 
     for iter in range(args.epochs):
-        rb_list = np.loadtxt(os.path.join(rb_rootpth, str(iter)+'.txt'))
+        rb_list=None
+        if rb:
+            rb_list = np.loadtxt(os.path.join(rb_rootpth, str(iter)+'.txt'))
         if args.debug:
             # print("rb_list", rb_list)
             # print("rb_range", rb_range)
@@ -175,7 +177,7 @@ if __name__ == '__main__':
 
             if args.results_save == "pattern" and iter >= start:
                 w_local, loss = local.train_attack_pattern(
-                    net=net_local.to(args.device), lr=lr, args=args)
+                    net=net_local.to(args.device), lr=lr, args=args, idx=idx)
             else:
                 w_local, loss = local.train(
                     net=net_local.to(args.device), lr=lr)
@@ -260,7 +262,7 @@ if __name__ == '__main__':
             torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
         
-        if (args.rb_wait):
+        if (rb and args.rb_wait):
             input("Wait analysis")
 
     print('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
