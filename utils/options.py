@@ -33,6 +33,7 @@ def args_parser():
     parser.add_argument('--pattern_choice', type=int, default=1, help="choose a pattern")
     parser.add_argument('--pos_choice', type=list, default=[1,1], help="choose a position")
     parser.add_argument('--local_ep_times', type=float, default=3, help="multiply local ep")
+    parser.add_argument('--scale', action='store_true', help="do weight scale")
 
     #attacker groups
     parser.add_argument('--groupattack', action='store_true', help="multiply local ep")
@@ -49,10 +50,12 @@ def args_parser():
                         default=[0,20], help="robust range like [0,20]")
     
     parser.add_argument('--clipping', action='store_true', help="do weight clipping")
-    parser.add_argument('--scale', action='store_true', help="do weight scale")
     parser.add_argument('--rlr', action='store_true', help="robust learning rate")
 
     parser.add_argument('--dba', action='store_true', help="dba attack")
+
+    parser.add_argument('--krum', action='store_true', help="do krumming defense")
+
 
     # model arguments
     parser.add_argument('--model', type=str, default='mlp', help='model name')

@@ -11,7 +11,7 @@ import pandas as pd
 import torch
 
 from utils.options import args_parser
-from utils.train_utils import get_data, get_model
+from utils.train_utils import get_data, get_model, getWglob, getWglobKrum
 from models.Update import LocalUpdate
 from models.test import test_img, test_img_attack_eval
 import os
@@ -112,6 +112,7 @@ if __name__ == '__main__':
                     rb_range), args.robust_range[1] + max(rb_range))]
         user_weight = 0.0
         w_glob = None
+        w_glob_list = []
         loss_locals = []
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.sort(np.random.choice(
@@ -150,13 +151,15 @@ if __name__ == '__main__':
                     w_local[k] = w_local[k] - \
                         (torch.nn.functional.normalize(
                             d_n[k].float(), dim=0)).long()
-            if w_glob is None:
-                w_glob = copy.deepcopy(w_local)
-                for k in w_glob.keys():
-                    w_glob[k] *= idxs_weight_dict[idx]
-            else:
-                for k in w_glob.keys():
-                    w_glob[k] += w_local[k] * idxs_weight_dict[idx]
+            # if w_glob is None:
+            #     w_glob = copy.deepcopy(w_local)
+            #     for k in w_glob.keys():
+            #         w_glob[k] *= idxs_weight_dict[idx]
+            # else:
+            #     for k in w_glob.keys():
+            #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
+            w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
+
             if (iter + 1) % 2 == 0 and idx % r == 0 and iter > args.start_saving and with_save:
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_normal_save/iter_{}_normal_{}.pt'.format(iter + 1, idx)))
@@ -196,19 +199,21 @@ if __name__ == '__main__':
                         (torch.nn.functional.normalize(
                             d_n[k].float(), dim=0)).long()
 
-            if w_glob is None:
-                w_glob = copy.deepcopy(w_local)
-                for k in w_glob.keys():
-                    w_glob[k] *= idxs_weight_dict[idx]
-            else:
-                if scale:
-                    for k in w_glob.keys():
-                        w_local[k] = len(
-                            idxs_users)*w_local[k] - (len(idxs_users)-1)*net_local.to(args.device).state_dict()[k]
-                for k in w_glob.keys():
-                    # w_glob[k] += w_local[k] * idxs_weight_dict[idx]
-                    #                     w_glob[k] += w_local[k]
-                    w_glob[k] += w_local[k] * idxs_weight_dict[idx]
+            if scale:
+                for k in w_local.keys():
+                    w_local[k] = len(idxs_users)*w_local[k] - (len(idxs_users)-1)*net_local.to(args.device).state_dict()[k]
+
+            # if w_glob is None:
+            #     w_glob = copy.deepcopy(w_local)
+            #     for k in w_glob.keys():
+            #         w_glob[k] *= idxs_weight_dict[idx]
+            # else:
+            #     for k in w_glob.keys():
+            #         # w_glob[k] += w_local[k] * idxs_weight_dict[idx]
+            #         #                     w_glob[k] += w_local[k]
+            #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
+            w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
+
             if (iter + 1) % 2 == 0 and iter > args.start_saving and with_save:
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_attack_save/iter_{}_attack_{}.pt'.format(iter + 1, idx)))
@@ -216,8 +221,13 @@ if __name__ == '__main__':
         lr *= args.lr_decay
         print("global weights update")
         # update global weights
-        for k in w_glob.keys():
-            w_glob[k] = torch.div(w_glob[k], user_weight)
+        # for k in w_glob.keys():
+        #     w_glob[k] = torch.div(w_glob[k], user_weight)
+
+        if args.krum :
+            w_glob = getWglobKrum(w_glob_list)
+        else:
+            w_glob = getWglob(w_glob_list)
 
         # copy weight to net_glob
         net_glob.load_state_dict(w_glob)

@@ -1,16 +1,32 @@
-epochs: 50
+epochs: 25
 num_users: 100
 frac: 0.8
-portion: 0.2
-no_local_save: False
-pattern_choice: 1
-robust: False
+portion: 0.4
+
 iid: True
 
-dba: false
-dataset: cifar10
-model: resnet20
-start_attack: 15
-start_saving: 15
+dba: False
+
+dataset: mnist
+model: lenet
+
+start_attack: 5
+position_choice: [5,5]
+data_portion: 0.7
+pattern_choice: 1
+local_ep_times: 2
+
+no_local_save: True
+start_saving: 5
+global_saving: 10
+global_saving_rate: 10
+normal_save_at_mod: 10
 
 results_save: pattern
+
+robust: False
+clipping: False
+rlr: False
+krum: True
+
+groupattack: False

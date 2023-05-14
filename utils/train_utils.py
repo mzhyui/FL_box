@@ -1,7 +1,9 @@
+import torch
 from torchvision import datasets, transforms
 
 from models.Nets import MLP, CNNMnist, CNNCifar, VGG16, lenet, lenetMini, resnet20, STNet
 from utils.sampling import iid, noniid, noniid_unbalanced
+from .krum import KrumDefense
 
 trans_mnist = transforms.Compose([transforms.ToTensor(),
                                   transforms.Normalize((0.1307,), (0.3081,))])
@@ -106,3 +108,45 @@ def get_model(args):
     print(net_glob)
 
     return net_glob
+
+def getWglob(w_glob_list: list):
+    w = w_glob_list[0][1]
+    user_weight = w_glob_list[0][2]
+    for k in w.keys():
+        w[k] *= w_glob_list[0][2]
+
+    for idx, w_local, idxs_weight in w_glob_list[1:]:
+        # w += w_local * idxs_weight
+        user_weight += idxs_weight
+        for k in w.keys():
+            w[k] += w_local[k] * idxs_weight
+
+    for k in w.keys():
+        w[k] = torch.div(w[k], user_weight)
+
+    return w
+
+def getWglobKrum(w_glob_list: list):
+    kd = KrumDefense(3, 70)
+    clients = []
+    for idx, w_local, idxs_weight in w_glob_list:
+        clients.append(tuple([idxs_weight, w_local]))
+    clients = kd.defend_before_aggregation(clients)
+
+    print(len(clients))
+
+    w = clients[0][1]
+    user_weight = clients[0][0]
+    for k in w.keys():
+        w[k] *= w_glob_list[0][0]
+
+    for idxs_weight, w_local in clients[1:]:
+        # w += w_local * idxs_weight
+        user_weight += idxs_weight
+        for k in w.keys():
+            w[k] += w_local[k] * idxs_weight
+
+    for k in w.keys():
+        w[k] = torch.div(w[k], user_weight)
+
+    return w
