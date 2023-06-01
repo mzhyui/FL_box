@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 from torchvision import models
 import math
-from utee import misc
+# from utee import misc
 from collections import OrderedDict
 import torch.nn.init as init
 import numpy as np

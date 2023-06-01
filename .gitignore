@@ -2,6 +2,8 @@
 data/
 *.bk/
 save_attack_ub
+conf/*
+rb_root/*
 # *.yaml
 
 # Byte-compiled / optimized / DLL files
