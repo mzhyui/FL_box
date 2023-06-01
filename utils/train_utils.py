@@ -116,6 +116,8 @@ def getWglob(w_glob_list: list):
         w[k] *= w_glob_list[0][2]
 
     for idx, w_local, idxs_weight in w_glob_list[1:]:
+        if idxs_weight < 10:
+            continue
         # w += w_local * idxs_weight
         user_weight += idxs_weight
         for k in w.keys():
@@ -126,8 +128,8 @@ def getWglob(w_glob_list: list):
 
     return w
 
-def getWglobKrum(w_glob_list: list):
-    kd = KrumDefense(3, 70)
+def getWglobKrum(w_glob_list: list, krumClients=70, mclients=3):
+    kd = KrumDefense(mclients, krumClients)
     clients = []
     for idx, w_local, idxs_weight in w_glob_list:
         clients.append(tuple([idxs_weight, w_local]))

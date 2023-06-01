@@ -31,8 +31,9 @@ if __name__ == '__main__':
 
     now = datetime.datetime.now()
 
-    base_dir = './save_attack_ub/{}/{}_iid{}_num{}_C{}_le{}_DBA{}/shard{}/{}/'.format(
-        args.dataset, args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba, args.shard_per_user, args.results_save+now.strftime("%m-%d--%H-%M-%S"))
+    # base_dir = './save_attack_ub/{}/{}_iid{}_num{}_C{}_le{}_DBA{}/shard{}/{}/'.format(
+    #     args.dataset, args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba, args.shard_per_user, args.results_save+now.strftime("%m-%d--%H-%M-%S"))
+    base_dir = os.path.join('.','save_attack_ub',args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.results_save+now.strftime("%m-%d--%H-%M-%S"))
     print(base_dir)
     if not os.path.exists(os.path.join(base_dir, 'fed')):
         os.makedirs(os.path.join(base_dir, 'fed'), exist_ok=True)
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     net_glob.train()
 
     # training
-    results_save_path = os.path.join(base_dir, 'fed/results.csv')
+    results_save_path = os.path.join(base_dir, 'fed', 'results.csv')
 
     loss_train = []
     net_best = None
@@ -107,9 +108,9 @@ if __name__ == '__main__':
             for i in idxs_weight_dict.keys():
                 if idxs_weight_dict[i] != 0:
                     idxs_weight_dict[i] = 100
-            if max(rb_range) / args.robust_range[1] <= 2:
-                rb_range = [i for i in range(args.robust_range[0] + max(
-                    rb_range), args.robust_range[1] + max(rb_range))]
+            # if max(rb_range) / args.robust_range[1] <= 2:
+            #     rb_range = [i for i in range(args.robust_range[0] + max(
+            #         rb_range), args.robust_range[1] + max(rb_range))]
         user_weight = 0.0
         w_glob = None
         w_glob_list = []
@@ -129,8 +130,8 @@ if __name__ == '__main__':
                 if args.debug:
                     print(idx, "penalty")
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
-            if idxs_weight_dict[idx] < 10:
-                continue
+            # if idxs_weight_dict[idx] < 10:
+            #     continue
             user_weight += idxs_weight_dict[idx]
             local = LocalUpdate(
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
@@ -162,7 +163,7 @@ if __name__ == '__main__':
 
             if (iter + 1) % 2 == 0 and idx % r == 0 and iter > args.start_saving and with_save:
                 torch.save(w_local, os.path.join(
-                    base_dir, 'local_normal_save/iter_{}_normal_{}.pt'.format(iter + 1, idx)))
+                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter + 1, idx)))
 
         for idx in np.intersect1d(idxs_users, attackers):
             # attack
@@ -171,8 +172,8 @@ if __name__ == '__main__':
                 if args.debug:
                     print(idx, "penalty")
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
-            if idxs_weight_dict[idx] < 10:
-                continue
+            # if idxs_weight_dict[idx] < 10:
+            #     continue
             user_weight += idxs_weight_dict[idx]
             local = LocalUpdate(
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
@@ -216,7 +217,7 @@ if __name__ == '__main__':
 
             if (iter + 1) % 2 == 0 and iter > args.start_saving and with_save:
                 torch.save(w_local, os.path.join(
-                    base_dir, 'local_attack_save/iter_{}_attack_{}.pt'.format(iter + 1, idx)))
+                    base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter + 1, idx)))
 
         lr *= args.lr_decay
         print("global weights update")
@@ -225,7 +226,7 @@ if __name__ == '__main__':
         #     w_glob[k] = torch.div(w_glob[k], user_weight)
 
         if args.krum :
-            w_glob = getWglobKrum(w_glob_list)
+            w_glob = getWglobKrum(w_glob_list, krumClients=70, mclients=3)
         else:
             w_glob = getWglob(w_glob_list)
 
@@ -235,6 +236,7 @@ if __name__ == '__main__':
         # print loss
         loss_avg = sum(loss_locals) / len(loss_locals)
         loss_train.append(loss_avg)
+
 
         print("eval")
         if (iter + 1) % args.test_freq == 0:
@@ -266,9 +268,9 @@ if __name__ == '__main__':
 
         if (iter + 1) % args.global_saving_rate == 0 and iter > args.global_saving:
             best_save_path = os.path.join(
-                base_dir, 'fed/attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
+                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
             model_save_path = os.path.join(
-                base_dir, 'fed/attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
+                base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
             torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
         
@@ -277,8 +279,8 @@ if __name__ == '__main__':
 
     print('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
     best_save_path = os.path.join(
-        base_dir, 'fed/attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
+        base_dir, 'fed','attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
     model_save_path = os.path.join(
-        base_dir, 'fed/attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
+        base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
     torch.save(net_best.state_dict(), best_save_path)
     torch.save(net_glob.state_dict(), model_save_path)
