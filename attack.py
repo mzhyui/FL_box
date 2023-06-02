@@ -213,7 +213,8 @@ if __name__ == '__main__':
             #         # w_glob[k] += w_local[k] * idxs_weight_dict[idx]
             #         #                     w_glob[k] += w_local[k]
             #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
-            w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
+            if not args.no_attack_on_attack:
+                w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
 
             if (iter + 1) % 2 == 0 and iter > args.start_saving and with_save:
                 torch.save(w_local, os.path.join(
@@ -284,3 +285,5 @@ if __name__ == '__main__':
         base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
     torch.save(net_best.state_dict(), best_save_path)
     torch.save(net_glob.state_dict(), model_save_path)
+    
+    print(base_dir)

@@ -8,6 +8,8 @@ import yaml
 def args_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help="debug mode")
+    parser.add_argument('--no_attack_on_attack', action='store_true', help="do not merge attack clients")
+
     
     # federated arguments
     parser.add_argument('--epochs', type=int, default=50, help="rounds of training")
