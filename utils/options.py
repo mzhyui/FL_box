@@ -5,6 +5,9 @@
 import argparse
 import yaml
 
+class CustomError(Exception):
+    pass
+
 def args_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help="debug mode")
@@ -101,4 +104,7 @@ def args_parser():
         with open(args.config, 'r') as f:
             parser.set_defaults(**yaml.safe_load(f))
             args = parser.parse_args()
+    else:
+        raise CustomError("No config file provided!")
+
     return args
