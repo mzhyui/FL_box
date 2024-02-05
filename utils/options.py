@@ -40,6 +40,9 @@ def args_parser():
     parser.add_argument('--local_ep_times', type=float, default=3, help="multiply local ep")
     parser.add_argument('--scale', action='store_true', help="do weight scale")
 
+    parser.add_argument('--dba', action='store_true', help="dba attack")
+    parser.add_argument('--attack_type', type=str, default="non_attack", help="the attack strategy")
+
     #attacker groups
     parser.add_argument('--groupattack', action='store_true', help="multiply local ep")
 
@@ -57,7 +60,6 @@ def args_parser():
     parser.add_argument('--clipping', action='store_true', help="do weight clipping")
     parser.add_argument('--rlr', action='store_true', help="robust learning rate")
 
-    parser.add_argument('--dba', action='store_true', help="dba attack")
 
     parser.add_argument('--krum', action='store_true', help="do krumming defense")
 
@@ -87,10 +89,10 @@ def args_parser():
     parser.add_argument('--load_fed', type=str, default='', help='define pretrained federated model path')
 
     # saving
-    parser.add_argument('--results_save', type=str, default='/', help='define fed results save folder')
+    parser.add_argument('--results_save', type=str, default='base_fl', help='define fed results save folder')
     parser.add_argument('--start_saving', type=int, default=0, help='when to start saving models')
-    parser.add_argument('--global_saving', type=int, default=0, help='when to start saving global models')
-    parser.add_argument('--global_saving_rate', type=int, default=5, help='global saving rate')
+    parser.add_argument('--global_saving_start', type=int, default=10, help='when to start saving global models')
+    parser.add_argument('--global_saving_rate', type=int, default=2, help='save at idx % r')
     parser.add_argument('--normal_save_at_mod', type=int, default=3, help="save at idx % r")
     parser.add_argument('--no_local_save', action='store_true', help="donot keep local model")
 

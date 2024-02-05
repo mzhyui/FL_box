@@ -42,6 +42,18 @@ def get_data(args):
             dict_users_train, rand_set_all = noniid_unbalanced(dataset_train, args.num_users, args.shard_per_user, ub_at=args.ub_label)
             dict_users_test, rand_set_all = noniid_unbalanced(dataset_test, args.num_users, args.shard_per_user, rand_set_all=rand_set_all, ub_at=args.ub_label)
             
+    elif args.dataset == 'fmnist' and args.ub_label == -1:
+        dataset_train = datasets.FashionMNIST('data/fashion/', train=True, download=True, transform=transforms.ToTensor())
+        dataset_test = datasets.FashionMNIST('data/fashion/', train=False, download=True, transform=transforms.ToTensor())
+        # sample users
+        if args.iid:
+            dict_users_train = iid(dataset_train, args.num_users)
+            dict_users_test = iid(dataset_test, args.num_users)
+        else:
+            dict_users_train, rand_set_all = noniid(dataset_train, args.num_users, args.shard_per_user)
+            dict_users_test, rand_set_all = noniid(dataset_test, args.num_users, args.shard_per_user, rand_set_all=rand_set_all)
+
+
     elif args.dataset == 'mnist' and args.ub_label == -1:
         dataset_train = datasets.MNIST('data/mnist/', train=True, download=True, transform=trans_mnist)
         dataset_test = datasets.MNIST('data/mnist/', train=False, download=True, transform=trans_mnist)
@@ -91,18 +103,22 @@ def get_model(args):
         net_glob = CNNCifar(args=args).to(args.device)
     elif args.model == 'vgg' and args.dataset == 'cifar10':
         net_glob = VGG16(args=args).to(args.device)
+    elif args.model == 'resnet20' and args.dataset == 'cifar10':
+        net_glob = resnet20(args=args).to(args.device)
     elif args.model == 'lenet' and args.dataset == 'mnist':
         net_glob = lenet(args=args).to(args.device)
     elif args.model == 'lenetMini' and args.dataset == 'mnist':
         net_glob = lenetMini(args=args).to(args.device)
-    elif args.model == 'resnet20' and args.dataset == 'cifar10':
-        net_glob = resnet20(args=args).to(args.device)
     elif args.model == 'cnn' and args.dataset == 'mnist':
         net_glob = CNNMnist(args=args).to(args.device)
     elif args.model == 'mlp' and args.dataset == 'mnist':
         net_glob = MLP(dim_in=784, dim_hidden=256, dim_out=args.num_classes).to(args.device)
+    elif args.model == 'lenet' and args.dataset == 'fmnist':
+        net_glob = lenet(args=args).to(args.device)
     elif args.model == 'stn' and args.dataset == 'GTSRB':
         net_glob = STNet(args=args).to(args.device)
+    elif args.model == 'resnet20' and args.dataset == 'GTSRB':
+        net_glob = resnet20(args=args).to(args.device)
     else:
         exit('Error: unrecognized model')
     print(net_glob)

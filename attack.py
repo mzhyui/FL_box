@@ -12,6 +12,7 @@ import torch
 
 from utils.options import args_parser
 from utils.train_utils import get_data, get_model, getWglob, getWglobKrum
+from utils.evaluate import defense
 from models.Update import LocalUpdate
 from models.test import test_img, test_img_attack_eval
 import os
@@ -69,11 +70,11 @@ if __name__ == '__main__':
     attack_portion = args.portion
     argsDict = args.__dict__
     atk_label = args.label
-    start = args.start_attack
+    start_attack_round = args.start_attack
     with_save = not args.no_local_save
-    r = args.normal_save_at_mod
-    c = args.pattern_choice
-    rb = args.robust
+    save_at_mod = args.normal_save_at_mod
+    pattern_choice = args.pattern_choice
+    robust_strategy = args.robust
     rb_rate = args.rb_rate
     rb_rootpth = args.rb_rootpth
     pr = args.penalty
@@ -95,22 +96,15 @@ if __name__ == '__main__':
     #print(f"assigning weight: {idxs_weight_dict}")
 
     for iter in range(args.epochs):
-        rb_list=None
-        if rb:
-            rb_list = np.loadtxt(os.path.join(rb_rootpth, str(iter)+'.txt'))
+        rb_list=[0]*args.num_users
+        if robust_strategy:
+            rb_list = defense(args=args, iter=iter)
         if args.debug:
             # print("rb_list", rb_list)
             # print("rb_range", rb_range)
             print(
             f"current average weight: {np.mean(list(idxs_weight_dict.values()))}")
-        if iter == max(rb_range):
-            #idxs_weight_dict = dict(list(zip(all_users, idxs_w)))
-            for i in idxs_weight_dict.keys():
-                if idxs_weight_dict[i] != 0:
-                    idxs_weight_dict[i] = 100
-            # if max(rb_range) / args.robust_range[1] <= 2:
-            #     rb_range = [i for i in range(args.robust_range[0] + max(
-            #         rb_range), args.robust_range[1] + max(rb_range))]
+        
         user_weight = 0.0
         w_glob = None
         w_glob_list = []
@@ -126,7 +120,9 @@ if __name__ == '__main__':
 
         for idx in np.intersect1d(idxs_users, norms):
             # normal
-            if (iter in rb_range) and rb and rb_list[idx]:
+            if args.debug:
+                print(idx, "normal training")
+            if (iter in rb_range) and robust_strategy and rb_list[idx]:
                 if args.debug:
                     print(idx, "penalty")
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
@@ -161,17 +157,19 @@ if __name__ == '__main__':
             #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
             w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
 
-            if (iter + 1) % 2 == 0 and idx % r == 0 and iter > args.start_saving and with_save:
+            if (iter + 1) % 2 == 0 and idx % save_at_mod == 0 and iter > args.start_saving and with_save:
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter + 1, idx)))
 
         for idx in np.intersect1d(idxs_users, attackers):
             # attack
             # rb weight
-            if (iter in rb_range) and rb and rb_list[idx]:
-                if args.debug:
-                    print(idx, "penalty")
+            if args.debug:
+                print(idx, "attacking")
+            if (iter in rb_range) and robust_strategy and rb_list[idx]:
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
+                if args.debug:
+                    print(idx, "penalty", idxs_weight_dict[idx])
             # if idxs_weight_dict[idx] < 10:
             #     continue
             user_weight += idxs_weight_dict[idx]
@@ -179,7 +177,7 @@ if __name__ == '__main__':
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
             net_local = copy.deepcopy(net_glob)
 
-            if args.results_save == "pattern" and iter >= start:
+            if args.attack_type != "non_attack" and iter >= start_attack_round:
                 w_local, loss = local.train_attack_pattern(
                     net=net_local.to(args.device), lr=lr, args=args, idx=idx)
             else:
@@ -267,7 +265,7 @@ if __name__ == '__main__':
         print(
             f"progress:{iter/args.epochs*100}%, eta:{_time *(args.epochs/(iter or 1)-1)} sec")
 
-        if (iter + 1) % args.global_saving_rate == 0 and iter > args.global_saving:
+        if (iter + 1) % args.global_saving_rate == 0 and iter > args.global_saving_start:
             best_save_path = os.path.join(
                 base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
             model_save_path = os.path.join(
@@ -275,7 +273,7 @@ if __name__ == '__main__':
             torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
         
-        if (rb and args.rb_wait):
+        if (robust_strategy and args.rb_wait):
             input("Wait analysis")
 
     print('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
