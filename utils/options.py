@@ -87,10 +87,11 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
     parser.add_argument('--test_freq', type=int, default=1, help='how often to test on val set')
     parser.add_argument('--load_fed', type=str, default='', help='define pretrained federated model path')
+    parser.add_argument('--load_begin_epoch', type=int, default='0', help='define epochs finished of the loaded fed model')
 
     # saving
     parser.add_argument('--results_save', type=str, default='base_fl', help='define fed results save folder')
-    parser.add_argument('--start_saving', type=int, default=0, help='when to start saving models')
+    parser.add_argument('--local_saving_start', type=int, default=0, help='when to start saving local models')
     parser.add_argument('--global_saving_start', type=int, default=10, help='when to start saving global models')
     parser.add_argument('--global_saving_rate', type=int, default=2, help='save at idx % r')
     parser.add_argument('--normal_save_at_mod', type=int, default=3, help="save at idx % r")

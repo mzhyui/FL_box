@@ -127,6 +127,9 @@ def get_model(args):
 
 def getWglob(w_glob_list: list):
     w = w_glob_list[0][1]
+    if (len(w_glob_list) <= 1):
+        return w
+        
     user_weight = w_glob_list[0][2]
     for k in w.keys():
         w[k] *= w_glob_list[0][2]
