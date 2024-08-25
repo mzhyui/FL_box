@@ -100,7 +100,7 @@ if __name__ == '__main__':
     atk_label = args.label
     start_attack_round = args.start_attack
     with_local_save = not args.no_local_save
-    save_at_mod = args.normal_save_at_mod
+    save_interval = args.normal_clients_save_interval
     pattern_choice = args.pattern_choice
     robust_strategy = args.robust
     rb_rate = args.rb_rate
@@ -192,7 +192,7 @@ if __name__ == '__main__':
             
             net_local.load_state_dict(w_local)
             CL(net_local, 'normal'+str(iter))
-            if (iter + 1) % 2 == 0 and idx % save_at_mod == 0 and iter >= args.local_saving_start and with_local_save:
+            if (iter + 1) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter >= args.local_saving_start and with_local_save:
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter + 1, idx)))
 
@@ -251,7 +251,7 @@ if __name__ == '__main__':
 
             net_local.load_state_dict(w_local)
             CL(net_local, 'attack'+str(iter))
-            if (iter + 1) % 2 == 0 and iter >= args.local_saving_start and with_local_save:
+            if (iter + 1) % args.local_saving_interval == 0 and iter >= args.local_saving_start and with_local_save:
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter + 1, idx)))
 
@@ -304,7 +304,7 @@ if __name__ == '__main__':
         print(
             f"progress:{iter/args.epochs*100}%, eta:{_time *(args.epochs/(iter or 1)-1)} sec")
 
-        if (iter + 1) % args.global_saving_rate == 0 and iter > args.global_saving_start:
+        if (iter + 1) % args.global_saving_interval == 0 and iter > args.global_saving_start:
             best_save_path = os.path.join(
                 base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
             model_save_path = os.path.join(

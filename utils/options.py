@@ -92,9 +92,10 @@ def args_parser():
     # saving
     parser.add_argument('--results_save', type=str, default='base_fl', help='define fed results save folder')
     parser.add_argument('--local_saving_start', type=int, default=0, help='when to start saving local models')
+    parser.add_argument('--local_saving_interval', type=int, default=5, help='save at round % r')
+    parser.add_argument('--normal_clients_save_interval', type=int, default=5, help="save by idx % r")
     parser.add_argument('--global_saving_start', type=int, default=10, help='when to start saving global models')
-    parser.add_argument('--global_saving_rate', type=int, default=2, help='save at idx % r')
-    parser.add_argument('--normal_save_at_mod', type=int, default=3, help="save at idx % r")
+    parser.add_argument('--global_saving_interval', type=int, default=10, help='save at round % r')
     parser.add_argument('--no_local_save', action='store_true', help="donot keep local model")
 
 
