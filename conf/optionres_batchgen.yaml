@@ -27,7 +27,7 @@ local_saving_interval: 1
 global_saving_start: 30
 global_saving_interval: 5
 
-results_save: pattern
+results_save: ./fl_pattern_save
 batch_gen: True
 
 robust: False

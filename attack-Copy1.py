@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     # base_dir = './save_attack_ub/{}/{}_iid{}_num{}_C{}_le{}_DBA{}/shard{}/{}/'.format(
     #     args.dataset, args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba, args.shard_per_user, args.results_save+now.strftime("%m-%d--%H-%M-%S"))
-    base_dir = os.path.join('.','save_attack_ub',args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.results_save+now.strftime("%m-%d--%H-%M-%S"))
+    base_dir = os.path.join(args.results_save,args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.attack_type+now.strftime("%m-%d--%H-%M-%S"))
     print(base_dir)
     if not os.path.exists(os.path.join(base_dir, 'fed')):
         os.makedirs(os.path.join(base_dir, 'fed'), exist_ok=True)
@@ -188,6 +188,7 @@ if __name__ == '__main__':
             net_local = copy.deepcopy(net_glob)
 
             if args.attack_type != "non_attack" and iter >= start_attack_round:
+                # TODO 2024-09-20 git.V.3edc9: attack type
                 w_local, loss = local.train_attack_pattern(
                     net=net_local.to(args.device), lr=lr, args=args, idx=idx)
             else:

@@ -90,7 +90,7 @@ def args_parser():
     parser.add_argument('--load_begin_epoch', type=int, default='0', help='define epochs finished of the loaded fed model')
 
     # saving
-    parser.add_argument('--results_save', type=str, default='base_fl', help='define fed results save folder')
+    parser.add_argument('--results_save', type=str, default='./fl_base_save', help='define fed results save folder')
     parser.add_argument('--local_saving_start', type=int, default=0, help='when to start saving local models')
     parser.add_argument('--local_saving_interval', type=int, default=5, help='save at round % r')
     parser.add_argument('--normal_clients_save_interval', type=int, default=5, help="save by idx % r")
