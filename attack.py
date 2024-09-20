@@ -5,7 +5,7 @@
 import copy
 from ctypes.wintypes import LONG
 import pickle
-from tkinter import W
+# from tkinter import W
 import numpy as np
 import pandas as pd
 import torch
@@ -13,6 +13,7 @@ import torch
 from utils.options import args_parser
 from utils.train_utils import get_data, get_model, getWglob, getWglobKrum
 from utils.evaluate import defense
+from utils.channelLipz import CL
 from models.Update import LocalUpdate
 from models.test import test_img, test_img_attack_eval
 import os
@@ -21,9 +22,9 @@ import math
 import re
 import time
 
-
 import pdb
 
+# TODO 2024-09-07 git.V.e45a2: backdoor batch generation: dont merge and repeat training
 if __name__ == '__main__':
     # parse args
     args = args_parser()
@@ -34,7 +35,7 @@ if __name__ == '__main__':
 
     # base_dir = './save_attack_ub/{}/{}_iid{}_num{}_C{}_le{}_DBA{}/shard{}/{}/'.format(
     #     args.dataset, args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba, args.shard_per_user, args.results_save+now.strftime("%m-%d--%H-%M-%S"))
-    base_dir = os.path.join('.','save_attack_ub',args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.results_save+now.strftime("%m-%d--%H-%M-%S"))
+    base_dir = os.path.join(args.results_save,args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.attack_type+now.strftime("%m-%d--%H-%M-%S"))
     print(base_dir)
     if not os.path.exists(os.path.join(base_dir, 'fed')):
         os.makedirs(os.path.join(base_dir, 'fed'), exist_ok=True)
@@ -71,8 +72,8 @@ if __name__ == '__main__':
     argsDict = args.__dict__
     atk_label = args.label
     start_attack_round = args.start_attack
-    with_save = not args.no_local_save
-    save_at_mod = args.normal_save_at_mod
+    with_local_save = not args.no_local_save
+    save_interval = args.normal_clients_save_interval
     pattern_choice = args.pattern_choice
     robust_strategy = args.robust
     rb_rate = args.rb_rate
@@ -95,7 +96,12 @@ if __name__ == '__main__':
     norms = list(set(all_users) - set(attackers))
     #print(f"assigning weight: {idxs_weight_dict}")
 
-    for iter in range(args.epochs):
+    if (args.load_fed != ''):
+        net_glob.load_state_dict(torch.load(args.load_fed))
+
+    iter = args.load_begin_epoch
+    for iter in range(args.load_begin_epoch, args.epochs):
+        net_glob.train()
         rb_list=[0]*args.num_users
         if robust_strategy:
             rb_list = defense(args=args, iter=iter)
@@ -156,8 +162,12 @@ if __name__ == '__main__':
             #     for k in w_glob.keys():
             #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
             w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
-
-            if (iter + 1) % 2 == 0 and idx % save_at_mod == 0 and iter > args.start_saving and with_save:
+            
+            net_local.load_state_dict(w_local)
+            if (args.cl):
+                CL(net_local, 'normal'+str(iter))
+            if (iter + 1) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter >= args.local_saving_start and with_local_save:
+                print("Saving")
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter + 1, idx)))
 
@@ -178,6 +188,7 @@ if __name__ == '__main__':
             net_local = copy.deepcopy(net_glob)
 
             if args.attack_type != "non_attack" and iter >= start_attack_round:
+                # TODO 2024-09-20 git.V.3edc9: attack type
                 w_local, loss = local.train_attack_pattern(
                     net=net_local.to(args.device), lr=lr, args=args, idx=idx)
             else:
@@ -214,7 +225,11 @@ if __name__ == '__main__':
             if not args.no_attack_on_attack:
                 w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
 
-            if (iter + 1) % 2 == 0 and iter > args.start_saving and with_save:
+            net_local.load_state_dict(w_local)
+            if (args.cl):
+                CL(net_local, 'attack'+str(iter))
+            if (iter + 1) % args.local_saving_interval == 0 and iter >= args.local_saving_start and with_local_save:
+                print("Saving")
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter + 1, idx)))
 
@@ -226,12 +241,17 @@ if __name__ == '__main__':
 
         if args.krum :
             w_glob = getWglobKrum(w_glob_list, krumClients=70, mclients=3)
+        elif args.batch_gen:
+            w_glob = net_glob.state_dict()
         else:
             w_glob = getWglob(w_glob_list)
 
         # copy weight to net_glob
         net_glob.load_state_dict(w_glob)
-
+        
+        if (args.cl):
+            CL(net_glob, 'global'+str(iter))
+        
         # print loss
         loss_avg = sum(loss_locals) / len(loss_locals)
         loss_train.append(loss_avg)
@@ -250,7 +270,7 @@ if __name__ == '__main__':
                 best_acc = acc_test
                 best_epoch = iter
 
-            # if (iter + 1) > args.start_saving:
+            # if (iter + 1) > args.local_saving_start:
             #     model_save_path = os.path.join(base_dir, 'fed/model_{}.pt'.format(iter + 1))
             #     torch.save(net_glob.state_dict(), model_save_path)
 
@@ -265,7 +285,7 @@ if __name__ == '__main__':
         print(
             f"progress:{iter/args.epochs*100}%, eta:{_time *(args.epochs/(iter or 1)-1)} sec")
 
-        if (iter + 1) % args.global_saving_rate == 0 and iter > args.global_saving_start:
+        if (iter + 1) % args.global_saving_interval == 0 and iter >= args.global_saving_start:
             best_save_path = os.path.join(
                 base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
             model_save_path = os.path.join(
@@ -278,7 +298,7 @@ if __name__ == '__main__':
 
     print('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
     best_save_path = os.path.join(
-        base_dir, 'fed','attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
+        base_dir, 'fed',f'attack_portion{attack_portion}_best_{iter +1}.pt')
     model_save_path = os.path.join(
         base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
     torch.save(net_best.state_dict(), best_save_path)
