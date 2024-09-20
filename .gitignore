@@ -2,7 +2,6 @@
 data/
 *.bk/
 save_attack_ub
-conf/*
 rb_root/*
 # *.yaml
 
