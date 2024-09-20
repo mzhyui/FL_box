@@ -5,7 +5,7 @@
 import copy
 from ctypes.wintypes import LONG
 import pickle
-from tkinter import W
+# from tkinter import W
 import numpy as np
 import pandas as pd
 import torch
@@ -13,6 +13,7 @@ import torch
 from utils.options import args_parser
 from utils.train_utils import get_data, get_model, getWglob, getWglobKrum
 from utils.evaluate import defense
+from utils.channelLipz import CL
 from models.Update import LocalUpdate
 from models.test import test_img, test_img_attack_eval
 import os
@@ -21,37 +22,9 @@ import math
 import re
 import time
 
-
 import pdb
 
-def CL(net, model_name):
-    import torch.nn as nn
-    import matplotlib.pyplot as plt
-    sparse_num = 0
-    total = 0
-    params = net.state_dict()
-    for name, m in net.named_modules():
-        if isinstance(m, nn.Conv2d):
-            channel_lips = []
-            weights_norm = []
-            for idx in range(m.weight.shape[0]):
-                weight = m.weight[idx]
-                weight = weight.reshape(weight.shape[0], -1).cpu()
-                channel_lips.append(torch.svd(weight)[1].max())
-                weights_norm.append(float(torch.norm(weight)))
-            channel_lips = torch.Tensor(channel_lips)
-
-    # print("channel_lips")
-    # print(channel_lips)
-    plt.figure(figsize=(8, 6))
-    plt.hist(channel_lips.numpy(), bins=np.arange(0, channel_lips.max() + 0.02, 0.02), edgecolor='black')
-    plt.xlabel('Channel Lipschitz Constant')
-    plt.ylabel('Frequency')
-    plt.title('Distribution of Channel Lipschitz Constants')
-    plt.grid(True)
-    plt.savefig(f'{base_dir}/channel_lips_distribution_{model_name}.png')
-    plt.close()
-
+# TODO 2024-09-07 git.V.e45a2: backdoor batch generation: dont merge and repeat training
 if __name__ == '__main__':
     # parse args
     args = args_parser()
@@ -191,8 +164,10 @@ if __name__ == '__main__':
             w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
             
             net_local.load_state_dict(w_local)
-            CL(net_local, 'normal'+str(iter))
+            if (args.cl):
+                CL(net_local, 'normal'+str(iter))
             if (iter + 1) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter >= args.local_saving_start and with_local_save:
+                print("Saving")
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter + 1, idx)))
 
@@ -250,8 +225,10 @@ if __name__ == '__main__':
                 w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
 
             net_local.load_state_dict(w_local)
-            CL(net_local, 'attack'+str(iter))
+            if (args.cl):
+                CL(net_local, 'attack'+str(iter))
             if (iter + 1) % args.local_saving_interval == 0 and iter >= args.local_saving_start and with_local_save:
+                print("Saving")
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter + 1, idx)))
 
@@ -263,13 +240,16 @@ if __name__ == '__main__':
 
         if args.krum :
             w_glob = getWglobKrum(w_glob_list, krumClients=70, mclients=3)
+        elif args.batch_gen:
+            w_glob = net_glob.state_dict()
         else:
             w_glob = getWglob(w_glob_list)
 
         # copy weight to net_glob
         net_glob.load_state_dict(w_glob)
         
-        CL(net_glob, 'global'+str(iter))
+        if (args.cl):
+            CL(net_glob, 'global'+str(iter))
         
         # print loss
         loss_avg = sum(loss_locals) / len(loss_locals)
@@ -304,7 +284,7 @@ if __name__ == '__main__':
         print(
             f"progress:{iter/args.epochs*100}%, eta:{_time *(args.epochs/(iter or 1)-1)} sec")
 
-        if (iter + 1) % args.global_saving_interval == 0 and iter > args.global_saving_start:
+        if (iter + 1) % args.global_saving_interval == 0 and iter >= args.global_saving_start:
             best_save_path = os.path.join(
                 base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
             model_save_path = os.path.join(
