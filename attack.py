@@ -22,9 +22,7 @@ import math
 import re
 import time
 
-import pdb
 
-# TODO 2024-09-07 git.V.e45a2: backdoor batch generation: dont merge and repeat training
 if __name__ == '__main__':
     # parse args
     args = args_parser()
@@ -99,8 +97,8 @@ if __name__ == '__main__':
     if (args.load_fed != ''):
         net_glob.load_state_dict(torch.load(args.load_fed))
 
-    iter = args.load_begin_epoch # load_begin_epoch if load_begin_epoch > epochs
-    for iter in range(args.load_begin_epoch, args.epochs):
+    # iter = args.load_begin_epoch
+    for iter in range(args.load_begin_epoch, args.epochs+1):
         net_glob.train()
         rb_list=[0]*args.num_users
         if robust_strategy:
@@ -166,16 +164,16 @@ if __name__ == '__main__':
             net_local.load_state_dict(w_local)
             if (args.cl):
                 CL(net_local, 'normal'+str(iter))
-            if (iter + 1) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter >= args.local_saving_start and with_local_save:
+            if (iter) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter >= args.local_saving_start and with_local_save:
                 print("Saving")
                 torch.save(w_local, os.path.join(
-                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter + 1, idx)))
+                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter, idx)))
 
         for idx in np.intersect1d(idxs_users, attackers):
             # attack
             # rb weight
             if args.debug:
-                print(idx, "normal training") if args.attack_type == "non_attack" else print(idx, "attacking")
+                print(idx, "normal training") if args.attack_type == "peace" else print(idx, "attacking")
             if (iter in rb_range) and robust_strategy and rb_list[idx]:
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
                 if args.debug:
@@ -187,7 +185,7 @@ if __name__ == '__main__':
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
             net_local = copy.deepcopy(net_glob)
 
-            if args.attack_type != "non_attack" and iter >= start_attack_round:
+            if args.attack_type != "peace" and iter >= start_attack_round:
                 # TODO 2024-09-20 git.V.3edc9: attack type
                 w_local, loss = local.train_attack_pattern(
                     net=net_local.to(args.device), lr=lr, args=args, idx=idx)
@@ -228,10 +226,10 @@ if __name__ == '__main__':
             net_local.load_state_dict(w_local)
             if (args.cl):
                 CL(net_local, 'attack'+str(iter))
-            if (iter + 1) % args.local_saving_interval == 0 and iter >= args.local_saving_start and with_local_save:
+            if (iter) % args.local_saving_interval == 0 and iter >= args.local_saving_start and with_local_save:
                 print("Saving")
                 torch.save(w_local, os.path.join(
-                    base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter + 1, idx)))
+                    base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter, idx)))
 
         lr *= args.lr_decay
         print("global weights update")
@@ -241,7 +239,7 @@ if __name__ == '__main__':
 
         if args.krum :
             w_glob = getWglobKrum(w_glob_list, krumClients=70, mclients=3)
-        elif args.batch_gen:
+        elif args.batch_gen != -1 and iter > args.batch_gen:
             w_glob = net_glob.state_dict()
         else:
             w_glob = getWglob(w_glob_list)
@@ -258,7 +256,7 @@ if __name__ == '__main__':
 
 
         print("eval")
-        if (iter + 1) % args.test_freq == 0:
+        if (iter) % args.test_freq == 0:
             net_glob.eval()
             acc_test, loss_test, correct_prediction, attack_prediction = test_img_attack_eval(
                 net_glob, dataset_test, args)
@@ -285,11 +283,11 @@ if __name__ == '__main__':
         print(
             f"progress:{iter/args.epochs*100}%, eta:{_time *(args.epochs/(iter or 1)-1)} sec")
 
-        if (iter + 1) % args.global_saving_interval == 0 and iter >= args.global_saving_start:
+        if (iter) % args.global_saving_interval == 0 and iter >= args.global_saving_start:
             best_save_path = os.path.join(
-                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter + 1))
+                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter))
             model_save_path = os.path.join(
-                base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
+                base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter))
             # TODO 2024-09-20 git.V.60119: saving error if not exist net_best
             torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
@@ -299,9 +297,9 @@ if __name__ == '__main__':
 
     print('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
     best_save_path = os.path.join(
-        base_dir, 'fed',f'attack_portion{attack_portion}_best_{iter +1}.pt')
+        base_dir, 'fed',f'attack_portion{attack_portion}_best_{iter}.pt')
     model_save_path = os.path.join(
-        base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter + 1))
+        base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter))
     torch.save(net_best.state_dict(), best_save_path)
     torch.save(net_glob.state_dict(), model_save_path)
     
