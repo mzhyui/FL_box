@@ -32,8 +32,8 @@ GTSRB_data_transforms = transforms.Compose([
 
 def get_data(args):
     if args.dataset == 'mnist' and args.ub_label !=  -1:
-        dataset_train = datasets.MNIST('data/mnist/', train=True, download=True, transform=trans_mnist)
-        dataset_test = datasets.MNIST('data/mnist/', train=False, download=True, transform=trans_mnist)
+        dataset_train = datasets.MNIST(args.dataset_path+'/mnist', train=True, download=True, transform=trans_mnist)
+        dataset_test = datasets.MNIST(args.dataset_path, train=False, download=True, transform=trans_mnist)
         # sample users
         if args.iid:
             dict_users_train = iid(dataset_train, args.num_users)
@@ -43,8 +43,8 @@ def get_data(args):
             dict_users_test, rand_set_all = noniid_unbalanced(dataset_test, args.num_users, args.shard_per_user, rand_set_all=rand_set_all, ub_at=args.ub_label)
             
     elif args.dataset == 'fmnist' and args.ub_label == -1:
-        dataset_train = datasets.FashionMNIST('data/fashion/', train=True, download=True, transform=transforms.ToTensor())
-        dataset_test = datasets.FashionMNIST('data/fashion/', train=False, download=True, transform=transforms.ToTensor())
+        dataset_train = datasets.FashionMNIST(args.dataset_path+'/mnist', train=True, download=True, transform=transforms.ToTensor())
+        dataset_test = datasets.FashionMNIST(args.dataset_path+'/mnist', train=False, download=True, transform=transforms.ToTensor())
         # sample users
         if args.iid:
             dict_users_train = iid(dataset_train, args.num_users)
@@ -55,8 +55,8 @@ def get_data(args):
 
 
     elif args.dataset == 'mnist' and args.ub_label == -1:
-        dataset_train = datasets.MNIST('data/mnist/', train=True, download=True, transform=trans_mnist)
-        dataset_test = datasets.MNIST('data/mnist/', train=False, download=True, transform=trans_mnist)
+        dataset_train = datasets.MNIST(args.dataset_path+'/mnist', train=True, download=True, transform=trans_mnist)
+        dataset_test = datasets.MNIST(args.dataset_path+'/mnist', train=False, download=True, transform=trans_mnist)
         # sample users
         if args.iid:
             dict_users_train = iid(dataset_train, args.num_users)
@@ -66,8 +66,8 @@ def get_data(args):
             dict_users_test, rand_set_all = noniid(dataset_test, args.num_users, args.shard_per_user, rand_set_all=rand_set_all)
     
     elif args.dataset == 'cifar10':
-        dataset_train = datasets.CIFAR10('data/cifar10', train=True, download=True, transform=trans_cifar10_train)
-        dataset_test = datasets.CIFAR10('data/cifar10', train=False, download=True, transform=trans_cifar10_val)
+        dataset_train = datasets.CIFAR10(args.dataset_path+'/cifar10', train=True, download=True, transform=trans_cifar10_train)
+        dataset_test = datasets.CIFAR10(args.dataset_path+'/cifar10', train=False, download=True, transform=trans_cifar10_val)
         if args.iid:
             dict_users_train = iid(dataset_train, args.num_users)
             dict_users_test = iid(dataset_test, args.num_users)
@@ -76,8 +76,8 @@ def get_data(args):
             dict_users_test, rand_set_all = noniid(dataset_test, args.num_users, args.shard_per_user, rand_set_all=rand_set_all)
     
     elif args.dataset == 'cifar100':
-        dataset_train = datasets.CIFAR100('data/cifar100', train=True, download=True, transform=trans_cifar100_train)
-        dataset_test = datasets.CIFAR100('data/cifar100', train=False, download=True, transform=trans_cifar100_val)
+        dataset_train = datasets.CIFAR100(args.dataset_path+'/cifar100', train=True, download=True, transform=trans_cifar100_train)
+        dataset_test = datasets.CIFAR100(args.dataset_path+'/cifar100', train=False, download=True, transform=trans_cifar100_val)
         if args.iid:
             dict_users_train = iid(dataset_train, args.num_users)
             dict_users_test = iid(dataset_test, args.num_users)
@@ -85,8 +85,8 @@ def get_data(args):
             dict_users_train, rand_set_all = noniid(dataset_train, args.num_users, args.shard_per_user)
             dict_users_test, rand_set_all = noniid(dataset_test, args.num_users, args.shard_per_user, rand_set_all=rand_set_all)
     elif args.dataset == 'GTSRB':
-        dataset_train = datasets.GTSRB(root="data/GTSRB", split="train", transform=GTSRB_data_transforms, download=True)
-        dataset_test = datasets.GTSRB(root="data/GTSRB", split="test", transform=GTSRB_data_transforms, download=True)
+        dataset_train = datasets.GTSRB(root=dataset_path+"/GTSRB", split="train", transform=GTSRB_data_transforms, download=True)
+        dataset_test = datasets.GTSRB(root=dataset_path+"/GTSRB", split="test", transform=GTSRB_data_transforms, download=True)
         if args.iid:
             dict_users_train = iid(dataset_train, args.num_users)
             dict_users_test = iid(dataset_test, args.num_users)
