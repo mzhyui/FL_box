@@ -107,6 +107,7 @@ def args_parser():
 
     
     parser.add_argument('--comment', type=str, default="none", help="leave a comment")
+    parser.add_argument('--log_dir', type=str, default="logs", help="log directory")
     parser.add_argument('--config', type=str, default="", help="load config")
 
     args = parser.parse_args()
