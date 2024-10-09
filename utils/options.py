@@ -90,7 +90,7 @@ def args_parser():
     # loading
     parser.add_argument('--dataset_path', type=str, default='data/', help='dataset loading path')
     parser.add_argument('--load_fed', type=str, default='', help='define pretrained federated model path')
-    parser.add_argument('--load_begin_epoch', type=int, default=0, help='define epochs finished of the loaded fed model, must < epochs')
+    parser.add_argument('--load_begin_epoch', type=int, default=1, help='define epochs finished of the loaded fed model, must < epochs')
 
     # saving
     parser.add_argument('--results_save', type=str, default='./fl_base_save', help='define fed results save folder')

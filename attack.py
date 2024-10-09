@@ -107,10 +107,10 @@ if __name__ == '__main__':
     #print(f"assigning weight: {idxs_weight_dict}")
 
     if (args.load_fed != ''):
-        net_glob.load_state_dict(torch.load(args.load_fed))
+        net_glob.load_state_dict(torch.load(args.load_fed, weights_only=True))
 
     # iter = args.load_begin_epoch
-    pbar = tqdm(range(args.load_begin_epoch, args.epochs+1), ncols=120)
+    pbar = tqdm(range(args.load_begin_epoch, args.load_begin_epoch+args.epochs+1), ncols=120)
     for iter in pbar:
         net_glob.train()
         rb_list=[0]*args.num_users
@@ -269,7 +269,7 @@ if __name__ == '__main__':
 
         if args.krum :
             w_glob = getWglobKrum(w_glob_list, krumClients=70, mclients=3)
-        elif args.batch_gen != -1 and iter > args.batch_gen:
+        elif args.batch_gen != -1 and iter >= args.batch_gen:
             w_glob = net_glob.state_dict()
         else:
             w_glob = getWglob(w_glob_list)

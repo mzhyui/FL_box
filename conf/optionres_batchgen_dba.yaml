@@ -7,28 +7,28 @@ debug: True
 
 iid: False
 
-dba: False
+dba: True
 
 dataset: cifar10
 model: resnet20
 
-attack_type: static
-start_attack: 50
+attack_type: dba
+start_attack: 0
 pos_choice: [5,5]
-data_portion: 0.5
+data_portion: 0.1
 pattern_choice: 1
 local_ep_times: 2
 
 no_local_save: False
-local_saving_start: 50
+local_saving_start: 0
 normal_clients_save_interval: 1
 local_saving_interval: 1
 
-global_saving_start: 50
+global_saving_start: 0
 global_saving_interval: 10
 
 results_save: ./fl_pattern_save
-batch_gen: 50
+batch_gen: -1
 
 robust: False
 clipping: False
@@ -36,5 +36,5 @@ rlr: False
 
 cl: False
 
-load_fed: ./fl_pattern_save/cifar10/resnet20_iidFalse_num100_C1_le2_DBAFalse/shard5/static09-29--19-32-01/fed/attack_portion0.5_best_50.pt
-load_begin_epoch: 50
+# load_fed: ./fl_pattern_save/cifar10/resnet20_iidFalse_num100_C1_le2_DBAFalse/shard5/static09-29--19-32-01/fed/attack_portion0.5_best_50.pt
+# load_begin_epoch: 50
