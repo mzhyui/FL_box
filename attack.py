@@ -91,9 +91,8 @@ if __name__ == '__main__':
     pr = args.penalty
     rb_range = list(range(args.robust_range[0], args.robust_range[1]))
 
-    with open(os.path.join(base_dir, 'settings.txt'), 'w') as f:
-        for eachArg, value in argsDict.items():
-            f.writelines(" --"+eachArg + ' ' + str(value) + '\n')
+    with open(os.path.join(base_dir, 'settings.yaml'), 'w') as f:
+        yaml.dump(argsDict, f, default_flow_style=False)
 
     logger.info("begin")
     logger.info(datetime.datetime.now().strftime("%m-%d--%H-%M-%S"))
