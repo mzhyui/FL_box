@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-
+import os
+import datetime
+import math
+import re
+import time
 import copy
+import yaml
 from ctypes.wintypes import LONG
 import pickle
 # from tkinter import W
+
 import numpy as np
 import pandas as pd
 import torch
@@ -16,11 +22,7 @@ from utils.evaluate import defense
 from utils.channelLipz import CL
 from models.Update import LocalUpdate
 from models.test import test_img, test_img_attack_eval
-import os
-import datetime
-import math
-import re
-import time
+
 
 from tqdm import tqdm
 import logging
@@ -59,9 +61,11 @@ if __name__ == '__main__':
     logger_file = logging.FileHandler(os.path.join(base_dir, args.log_dir, 'basic.log'))
     logger_file.setFormatter(formatter)
     logger.addHandler(logger_file)
+    logger.propagate = False
 
     # build model
     net_glob = get_model(args)
+    logger.info(net_glob)
     net_glob.train()
 
     # training
@@ -128,8 +132,7 @@ if __name__ == '__main__':
         idxs_users = np.sort(np.random.choice(
             range(args.num_users), m, replace=False))
         #idxs_w = np.linspace(1, 1, 10, dtype=int)
-        pbar.set_description("Round {}, lr: {:.6f}".format(
-            iter, lr))
+        pbar.set_description("Round {}, lr: {:.6f}".format(iter, lr))
 
         if args.debug:
             pass
