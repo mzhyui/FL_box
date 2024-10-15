@@ -10,6 +10,7 @@ import copy
 import yaml
 from ctypes.wintypes import LONG
 import pickle
+import gc
 # from tkinter import W
 
 import numpy as np
@@ -97,6 +98,7 @@ if __name__ == '__main__':
 
     with open(os.path.join(base_dir, 'settings.yaml'), 'w') as f:
         yaml.dump(argsDict, f, default_flow_style=False)
+    logger.info(argsDict)
 
     logger.info("begin")
     logger.info(datetime.datetime.now().strftime("%m-%d--%H-%M-%S"))
@@ -112,13 +114,13 @@ if __name__ == '__main__':
     if (args.load_fed != ''):
         net_glob.load_state_dict(torch.load(args.load_fed, weights_only=True))
 
-    # iter = args.load_begin_epoch
+    # iter_ = args.load_begin_epoch
     pbar = tqdm(range(args.load_begin_epoch, args.load_begin_epoch+args.epochs+1), ncols=120)
-    for iter in pbar:
+    for iter_ in pbar:
         net_glob.train()
         rb_list=[0]*args.num_users
         if robust_strategy:
-            rb_list = defense(args=args, iter=iter)
+            rb_list = defense(args=args, it=iter_)
         if args.debug:
             # print("rb_list", rb_list)
             # print("rb_range", rb_range)
@@ -128,11 +130,14 @@ if __name__ == '__main__':
         w_glob = None
         w_glob_list = []
         loss_locals = []
+        if args.dynamic_frac != [] and iter_ == args.dynamic_frac[0]:
+                args.frac = args.dynamic_frac[1]
+                args.dynamic_frac = args.dynamic_frac[2:]
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.sort(np.random.choice(
             range(args.num_users), m, replace=False))
         #idxs_w = np.linspace(1, 1, 10, dtype=int)
-        pbar.set_description("Round {}, lr: {:.6f}".format(iter, lr))
+        pbar.set_description("Round {}, lr: {:.6f}".format(iter_, lr))
 
         if args.debug:
             pass
@@ -146,7 +151,7 @@ if __name__ == '__main__':
                 # print(idx, "normal training")
                 current_status = f"normal training {idx}"
                 pbar.set_postfix_str(current_status)
-            if (iter in rb_range) and robust_strategy and rb_list[idx]:
+            if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
                 if args.debug:
                     # print(idx, "penalty")
                     current_status += f"penalty {idx}"
@@ -185,13 +190,13 @@ if __name__ == '__main__':
             
             net_local.load_state_dict(w_local)
             if (args.cl):
-                CL(net_local, 'normal'+str(iter))
-            if (iter) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter >= args.local_saving_start and with_local_save:
+                CL(net_local, 'normal'+str(iter_))
+            if (iter_) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
                 # print("Saving")
                 current_status += "saving"
                 pbar.set_postfix_str(current_status)
                 torch.save(w_local, os.path.join(
-                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter, idx)))
+                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter_, idx)))
 
         for idx in np.intersect1d(idxs_users, attackers):
             # attack
@@ -200,7 +205,7 @@ if __name__ == '__main__':
                 # print(idx, "normal training") if args.attack_type == "peace" else print(idx, "attacking")
                 current_status = f"attacking {idx}"
                 pbar.set_postfix_str(current_status)
-            if (iter in rb_range) and robust_strategy and rb_list[idx]:
+            if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
                 if args.debug:
                     # print(idx, "penalty", idxs_weight_dict[idx])
@@ -213,7 +218,7 @@ if __name__ == '__main__':
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
             net_local = copy.deepcopy(net_glob)
 
-            if args.attack_type != "peace" and iter >= start_attack_round:
+            if args.attack_type != "peace" and iter_ >= start_attack_round:
                 # TODO 2024-09-20 git.V.3edc9: attack type
                 w_local, loss = local.train_attack_pattern(
                     net=net_local.to(args.device), lr=lr, args=args, idx=idx)
@@ -253,13 +258,13 @@ if __name__ == '__main__':
 
             net_local.load_state_dict(w_local)
             if (args.cl):
-                CL(net_local, 'attack'+str(iter))
-            if (iter) % args.local_saving_interval == 0 and iter >= args.local_saving_start and with_local_save:
+                CL(net_local, 'attack'+str(iter_))
+            if (iter_) % args.local_saving_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
                 # print("Saving")
                 current_status += "saving"
                 pbar.set_postfix_str(current_status)
                 torch.save(w_local, os.path.join(
-                    base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter, idx)))
+                    base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter_, idx)))
 
         lr *= args.lr_decay
         # print("global weights update")
@@ -271,7 +276,7 @@ if __name__ == '__main__':
 
         if args.krum :
             w_glob = getWglobKrum(w_glob_list, krumClients=70, mclients=3)
-        elif args.batch_gen != -1 and iter >= args.batch_gen:
+        elif args.batch_gen != -1 and iter_ >= args.batch_gen:
             w_glob = net_glob.state_dict()
         else:
             w_glob = getWglob(w_glob_list)
@@ -280,7 +285,7 @@ if __name__ == '__main__':
         net_glob.load_state_dict(w_glob)
         
         if (args.cl):
-            CL(net_glob, 'global'+str(iter))
+            CL(net_glob, 'global'+str(iter_))
         
         # print loss
         loss_avg = sum(loss_locals) / len(loss_locals)
@@ -290,26 +295,26 @@ if __name__ == '__main__':
         # print("eval")
         current_status = "eval"
         pbar.set_postfix_str(current_status)
-        if (iter) % args.test_freq == 0:
+        if (iter_) % args.test_freq == 0:
             net_glob.eval()
             acc_test, loss_test, correct_prediction, attack_prediction = test_img_attack_eval(
                 net_glob, dataset_test, args)
             # print('Round {:3d}, Average loss {:.3f}, Test loss {:.3f}, Test accuracy: {:.2f}, Backdoor base acc: {:.2f}, Backdoor target acc: {:.2f}'.format(
-            #     iter, loss_avg, loss_test, acc_test, correct_prediction, attack_prediction))
+            #     iter_, loss_avg, loss_test, acc_test, correct_prediction, attack_prediction))
             logger.info('Round {:3d}, Average loss {:.3f}, Test loss {:.3f}, Test accuracy: {:.2f}, Backdoor base acc: {:.2f}, Backdoor target acc: {:.2f}'.format(
-                iter, loss_avg, loss_test, acc_test, correct_prediction, attack_prediction))
+                iter_, loss_avg, loss_test, acc_test, correct_prediction, attack_prediction))
 
             if acc_test > best_acc:
                 net_best = copy.deepcopy(net_glob)
                 best_acc = acc_test
-                best_epoch = iter
+                best_epoch = iter_
 
-            # if (iter + 1) > args.local_saving_start:
-            #     model_save_path = os.path.join(base_dir, 'fed/model_{}.pt'.format(iter + 1))
+            # if (iter_) >= args.local_saving_start:
+            #     model_save_path = os.path.join(base_dir, 'fed/model_{}.pt'.format(iter_))
             #     torch.save(net_glob.state_dict(), model_save_path)
 
             results.append(np.array(
-                [iter, loss_avg, loss_test, acc_test, best_acc, correct_prediction, attack_prediction]))
+                [iter_, loss_avg, loss_test, acc_test, best_acc, correct_prediction, attack_prediction]))
             final_results = np.array(results)
             final_results = pd.DataFrame(final_results, columns=[
                                          'epoch', 'loss_avg', 'loss_test', 'acc_test', 'best_acc', 'correct_prediction', 'attack_prediction'])
@@ -317,25 +322,28 @@ if __name__ == '__main__':
 
         _time = time.time() - b_time
         # print(
-        #     f"progress:{iter/args.epochs*100}%, eta:{_time *(args.epochs/(iter or 1)-1)} sec")
+        #     f"progress:{iter_/args.epochs*100}%, eta:{_time *(args.epochs/(iter_)-1)} sec")
 
-        if (iter) % args.global_saving_interval == 0 and iter >= args.global_saving_start:
+        if (iter_) % args.global_saving_interval == 0 and iter_ >= args.global_saving_start:
             best_save_path = os.path.join(
-                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter))
+                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter_))
             model_save_path = os.path.join(
-                base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter))
+                base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter_))
             # TODO 2024-09-20 git.V.60119: saving error if not exist net_best
             torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
         
         if (robust_strategy and args.rb_wait):
             input("Wait analysis")
+        
+        gc.collect()
+        torch.cuda.empty_cache()
 
-    logger.info('Best model, iter: {}, acc: {}'.format(best_epoch, best_acc))
+    logger.info('Best model, iter_: {}, acc: {}'.format(best_epoch, best_acc))
     best_save_path = os.path.join(
-        base_dir, 'fed',f'attack_portion{attack_portion}_best_{iter}.pt')
+        base_dir, 'fed',f'attack_portion{attack_portion}_best_{iter_}.pt')
     model_save_path = os.path.join(
-        base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter))
+        base_dir, 'fed','attack_portion{}_model_{}.pt'.format(attack_portion, iter_))
     torch.save(net_best.state_dict(), best_save_path)
     torch.save(net_glob.state_dict(), model_save_path)
     

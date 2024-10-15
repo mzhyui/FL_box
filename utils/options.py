@@ -18,6 +18,7 @@ def args_parser():
     parser.add_argument('--num_users', type=int, default=100, help="number of users: K")
     parser.add_argument('--shard_per_user', type=int, default=5, help="classes per user")
     parser.add_argument('--frac', type=float, default=0.8, help="the fraction of clients per round: C")
+    parser.add_argument('--dynamic_frac', type=float, nargs='+', default=[], help="the fraction of clients changes at round, eg: [50, 0.5, 100, 0.1]")
     parser.add_argument('--local_ep', type=int, default=2, help="the number of local epochs: E")
     parser.add_argument('--local_bs', type=int, default=64, help="local batch size: B")
     parser.add_argument('--bs', type=int, default=128, help="test batch size")

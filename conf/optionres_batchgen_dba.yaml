@@ -1,4 +1,4 @@
-epochs: 10
+epochs: 60
 local_ep: 2
 num_users: 100
 frac: 1
@@ -13,22 +13,22 @@ dataset: cifar10
 model: resnet20
 
 attack_type: dba
-start_attack: 0
+start_attack: 30
 pos_choice: [5,5]
 data_portion: 0.1
 pattern_choice: 1
 local_ep_times: 2
 
 no_local_save: False
-local_saving_start: 0
+local_saving_start: 30
 normal_clients_save_interval: 1
 local_saving_interval: 1
 
 global_saving_start: 0
-global_saving_interval: 10
+global_saving_interval: 5
 
 results_save: ./fl_pattern_save
-batch_gen: -1
+batch_gen: 55
 
 robust: False
 clipping: False

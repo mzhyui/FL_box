@@ -24,8 +24,8 @@ local_saving_start: 10
 normal_clients_save_interval: 5
 local_saving_interval: 5
 
-global_saving_start: 29
-global_saving_interval: 10
+global_saving_start: 25
+global_saving_interval: 4
 
 results_save: ./fl_pattern_save
 batch_gen: -1
@@ -36,5 +36,5 @@ rlr: False
 
 cl: False
 
-load_fed: ./fl_pattern_save/cifar10/resnet20_iidFalse_num100_C1_le2_DBAFalse/shard5/static09-29--19-32-01/fed/attack_portion0.5_best_50.pt
+load_fed: ./fl_pattern_save/cifar10/resnet20_iidFalse_num100_C0.8_le2_DBAFalse/shard5/static10-09--14-46-43/fed/attack_portion0.1_best_50.pt
 load_begin_epoch: 50
