@@ -35,7 +35,18 @@ if __name__ == '__main__':
     args.device = torch.device('cuda:{}'.format(
         args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
 
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    if not os.path.exists(os.path.join(base_dir, args.log_dir)):
+        os.makedirs(os.path.join(base_dir, args.log_dir))
+    logger_file = logging.FileHandler(os.path.join(base_dir, args.log_dir, 'basic.log'))
+    logger_file.setFormatter(formatter)
+    logger.addHandler(logger_file)
+    logger.propagate = False
+
     now = datetime.datetime.now()
+    logger.info('preparing dataset')
 
     # base_dir = './save_attack_ub/{}/{}_iid{}_num{}_C{}_le{}_DBA{}/shard{}/{}/'.format(
     #     args.dataset, args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba, args.shard_per_user, args.results_save+now.strftime("%m-%d--%H-%M-%S"))
@@ -54,15 +65,7 @@ if __name__ == '__main__':
     with open(dict_save_path, 'wb') as handle:
         pickle.dump((dict_users_train, dict_users_test), handle)
 
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    if not os.path.exists(os.path.join(base_dir, args.log_dir)):
-        os.makedirs(os.path.join(base_dir, args.log_dir))
-    logger_file = logging.FileHandler(os.path.join(base_dir, args.log_dir, 'basic.log'))
-    logger_file.setFormatter(formatter)
-    logger.addHandler(logger_file)
-    logger.propagate = False
+    
 
     # build model
     net_glob = get_model(args)
@@ -115,7 +118,7 @@ if __name__ == '__main__':
         net_glob.load_state_dict(torch.load(args.load_fed, weights_only=True))
 
     # iter_ = args.load_begin_epoch
-    pbar = tqdm(range(args.load_begin_epoch, args.load_begin_epoch+args.epochs+1), ncols=120)
+    pbar = tqdm(range(args.load_begin_epoch+1, args.load_begin_epoch+args.epochs+1), ncols=120)
     for iter_ in pbar:
         net_glob.train()
         rb_list=[0]*args.num_users
@@ -203,7 +206,7 @@ if __name__ == '__main__':
             # rb weight
             if args.debug:
                 # print(idx, "normal training") if args.attack_type == "peace" else print(idx, "attacking")
-                current_status = f"attacking {idx}"
+                current_status = f"attacking {idx} {iter_ >= start_attack_round or args.attack_type != 'peace'}"
                 pbar.set_postfix_str(current_status)
             if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
@@ -259,6 +262,7 @@ if __name__ == '__main__':
             net_local.load_state_dict(w_local)
             if (args.cl):
                 CL(net_local, 'attack'+str(iter_))
+            # TODO 2024-10-16 git.V.9a147: not saving all clients after frac changing
             if (iter_) % args.local_saving_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
                 # print("Saving")
                 current_status += "saving"
