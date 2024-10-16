@@ -90,14 +90,13 @@ if __name__ == '__main__':
     atk_label = args.label
     start_attack_round = args.start_attack
     with_local_save = not args.no_local_save
-    save_interval = args.normal_clients_save_interval
+    save_interval = args.normal_clients_save_interval if args.normal_clients_save_interval > 0 else (1-attack_portion)/attack_portion
     pattern_choice = args.pattern_choice
     robust_strategy = args.robust
     rb_rate = args.rb_rate
     rb_rootpth = args.rb_rootpth
     pr = args.penalty
     rb_range = list(range(args.robust_range[0], args.robust_range[1]))
-    local_saving_interval = (1-args.portion)/args.portion if args.local_saving_interval == -1 else args.local_saving_interval
 
     with open(os.path.join(base_dir, 'settings.yaml'), 'w') as f:
         yaml.dump(argsDict, f, default_flow_style=False)
@@ -194,7 +193,7 @@ if __name__ == '__main__':
             net_local.load_state_dict(w_local)
             if (args.cl):
                 CL(net_local, 'normal'+str(iter_))
-            if (iter_) % local_saving_interval == 0 and idx % save_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
+            if (iter_) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
                 # print("Saving")
                 current_status += "saving"
                 pbar.set_postfix_str(current_status)
@@ -263,7 +262,7 @@ if __name__ == '__main__':
             if (args.cl):
                 CL(net_local, 'attack'+str(iter_))
             # TODO 2024-10-16 git.V.9a147: not saving all clients after frac changing
-            if iter_ >= args.local_saving_start and with_local_save:
+            if (iter_) % args.local_saving_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
                 # print("Saving")
                 current_status += "saving"
                 pbar.set_postfix_str(current_status)
