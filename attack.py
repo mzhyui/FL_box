@@ -34,7 +34,7 @@ if __name__ == '__main__':
     args = args_parser()
     args.device = torch.device('cuda:{}'.format(
         args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
-        
+
     now = datetime.datetime.now()
     base_dir = os.path.join(args.results_save,args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.attack_type+now.strftime("%m-%d--%H-%M-%S"))
     print(base_dir)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     logger_file = logging.FileHandler(os.path.join(base_dir, args.log_dir, 'basic.log'))
     logger_file.setFormatter(formatter)
     logger.addHandler(logger_file)
-    logger.propagate = False
+    # logger.propagate = False
 
     logger.info('preparing dataset')
 
@@ -311,6 +311,7 @@ if __name__ == '__main__':
                 net_best = copy.deepcopy(net_glob)
                 best_acc = acc_test
                 best_epoch = iter_
+                torch.save(net_best.state_dict(), best_save_path)
 
             # if (iter_) >= args.local_saving_start:
             #     model_save_path = os.path.join(base_dir, 'fed/model_{}.pt'.format(iter_))
@@ -333,7 +334,6 @@ if __name__ == '__main__':
             model_save_path = os.path.join(
                 base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter_))
             # TODO 2024-09-20 git.V.60119: saving error if not exist net_best
-            torch.save(net_best.state_dict(), best_save_path)
             torch.save(net_glob.state_dict(), model_save_path)
         
         if (robust_strategy and args.rb_wait):
