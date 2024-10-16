@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     # build model
     net_glob = get_model(args)
-    logger.info(net_glob)
+    logger.debug(net_glob)
     net_glob.train()
 
     # training
@@ -311,6 +311,8 @@ if __name__ == '__main__':
                 net_best = copy.deepcopy(net_glob)
                 best_acc = acc_test
                 best_epoch = iter_
+                best_save_path = os.path.join(
+                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter_))
                 torch.save(net_best.state_dict(), best_save_path)
 
             # if (iter_) >= args.local_saving_start:
@@ -329,8 +331,7 @@ if __name__ == '__main__':
         #     f"progress:{iter_/args.epochs*100}%, eta:{_time *(args.epochs/(iter_)-1)} sec")
 
         if (iter_) % args.global_saving_interval == 0 and iter_ >= args.global_saving_start:
-            best_save_path = os.path.join(
-                base_dir, 'fed', 'attack_portion{}_best_{}.pt'.format(attack_portion, iter_))
+            
             model_save_path = os.path.join(
                 base_dir, 'fed', 'attack_portion{}_model_{}.pt'.format(attack_portion, iter_))
             # TODO 2024-09-20 git.V.60119: saving error if not exist net_best
