@@ -34,6 +34,8 @@ if __name__ == '__main__':
     args = args_parser()
     args.device = torch.device('cuda:{}'.format(
         args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
+    base_dir = os.path.join(args.results_save,args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.attack_type+now.strftime("%m-%d--%H-%M-%S"))
+    print(base_dir)
 
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
@@ -48,10 +50,6 @@ if __name__ == '__main__':
     now = datetime.datetime.now()
     logger.info('preparing dataset')
 
-    # base_dir = './save_attack_ub/{}/{}_iid{}_num{}_C{}_le{}_DBA{}/shard{}/{}/'.format(
-    #     args.dataset, args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba, args.shard_per_user, args.results_save+now.strftime("%m-%d--%H-%M-%S"))
-    base_dir = os.path.join(args.results_save,args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.attack_type+now.strftime("%m-%d--%H-%M-%S"))
-    print(base_dir)
     if not os.path.exists(os.path.join(base_dir, 'fed')):
         os.makedirs(os.path.join(base_dir, 'fed'), exist_ok=True)
     if not os.path.exists(os.path.join(base_dir, 'local_attack_save')):
