@@ -102,7 +102,7 @@ def args_parser():
     parser.add_argument('--batch_gen', type=int, default=-1, help='dont merge and repeat training after epoch > batch_gen')
 
     # analysis
-    parser.add_argument('--cl', action='store_true', help='perform channel lipschitz distance recording')
+    parser.add_argument('--cl', type=int, default=0, help='perform channel lipschitz distance recording')
 
     
     parser.add_argument('--comment', type=str, default="none", help="leave a comment")

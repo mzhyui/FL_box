@@ -1,0 +1,37 @@
+epochs: 30
+local_ep: 2
+num_users: 100
+frac: 0.8
+portion: 0
+debug: True
+
+iid: True
+
+dba: False
+
+dataset: cifar10
+model: resnet20
+
+attack_type: non_attack
+start_attack: 999
+position_choice: [5,5]
+data_portion: 0.3
+pattern_choice: 1
+local_ep_times: 1
+
+no_local_save: True
+local_saving_start: 999
+normal_clients_save_interval: 1
+local_saving_interval: 1
+
+global_saving_start: 10
+global_saving_interval: 1
+
+results_save: /root/autodl-tmp/fl_pattern_save
+
+robust: False
+clipping: False
+rlr: False
+
+# load_fed: save_attack_ub/cifar10/resnet20_iidTrue_num1_C1_le20_DBAFalse/shard2/pattern08-19--23-03-16/fed/attack_portion1_model_3.pt
+# load_begin_epoch: 3

@@ -1,33 +1,53 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.6
-import os
+import concurrent.futures
+import copy
 import datetime
+import gc
+import logging
 import math
+import os
+import pickle
 import re
 import time
-import copy
-import yaml
 from ctypes.wintypes import LONG
-import pickle
-import gc
-# from tkinter import W
 
 import numpy as np
 import pandas as pd
 import torch
+import yaml
+from tqdm import tqdm
 
+from models.test import test_img, test_img_attack_eval
+from models.Update import LocalUpdate
+from utils.channelLipz import CL
+from utils.clip import clipping
+from utils.evaluate import defense
 from utils.options import args_parser
 from utils.train_utils import get_data, get_model, getWglob, getWglobKrum
-from utils.evaluate import defense
-from utils.channelLipz import CL
-from models.Update import LocalUpdate
-from models.test import test_img, test_img_attack_eval
 
-
-from tqdm import tqdm
-import logging
-
+def train_user(idx, idxs_weight_dict, net_glob, args, dataset_train, dict_users_train, rb_range, robust_strategy, rb_list, clipping, lr, iter_, with_local_save, base_dir):
+    # Initialize local variables
+    current_status = ""
+    if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
+        current_status += f"penalty {idx}"
+        idxs_weight_dict[idx] = int(idxs_weight_dict[idx] * pr)
+    
+    # Training and weight updating for the user
+    user_weight = idxs_weight_dict[idx]
+    local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users_train[idx])
+    net_local = copy.deepcopy(net_glob)
+    w_local, loss = local.train(net=net_local.to(args.device), lr=lr)
+    
+    if clipping:
+        w_local = clipping(w_local, net_local)
+    
+    # Save model if needed
+    if args.local_saving_interval and iter_ % args.local_saving_interval == 0 and with_local_save:
+        torch.save(w_local, os.path.join(base_dir, 'local_normal_save', f'iter_{iter_}_normal_{idx}.pt'))
+    
+    return idx, w_local, idxs_weight_dict[idx], loss
 
 if __name__ == '__main__':
     # parse args
@@ -133,8 +153,8 @@ if __name__ == '__main__':
         w_glob_list = []
         loss_locals = []
         if args.dynamic_frac != [] and iter_ == args.dynamic_frac[0]:
-                args.frac = args.dynamic_frac[1]
-                args.dynamic_frac = args.dynamic_frac[2:]
+            args.frac = args.dynamic_frac[1]
+            args.dynamic_frac = args.dynamic_frac[2:]
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.sort(np.random.choice(
             range(args.num_users), m, replace=False))
@@ -149,18 +169,12 @@ if __name__ == '__main__':
         current_status = ""
         for idx in np.intersect1d(idxs_users, norms):
             # normal
-            if args.debug:
-                # print(idx, "normal training")
-                current_status = f"normal training {idx}"
-                pbar.set_postfix_str(current_status)
+            current_status = f"normal training {idx}"
+            pbar.set_postfix_str(current_status)
             if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
-                if args.debug:
-                    # print(idx, "penalty")
-                    current_status += f"penalty {idx}"
-                    pbar.set_postfix_str(current_status)
+                current_status += f"penalty {idx}"
+                pbar.set_postfix_str(current_status)
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
-            # if idxs_weight_dict[idx] < 10:
-            #     continue
             user_weight += idxs_weight_dict[idx]
             local = LocalUpdate(
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
@@ -170,51 +184,33 @@ if __name__ == '__main__':
             loss_locals.append(copy.deepcopy(loss))
 
             if clipping:
-                d_w = copy.deepcopy(w_local)
-                for k in w_local.keys():
-                    d_w[k] = w_local[k] - net_local.state_dict()[k]
-                d_n = copy.deepcopy(w_local)
-                for k in w_local.keys():
-                    d_n[k] = torch.nn.functional.normalize(
-                        d_w[k].float(), dim=0)
-                for k in w_local.keys():
-                    w_local[k] = w_local[k] - \
-                        (torch.nn.functional.normalize(
-                            d_n[k].float(), dim=0)).long()
-            # if w_glob is None:
-            #     w_glob = copy.deepcopy(w_local)
-            #     for k in w_glob.keys():
-            #         w_glob[k] *= idxs_weight_dict[idx]
-            # else:
-            #     for k in w_glob.keys():
-            #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
+                w_local = clipping(w_local, net_local)
+                
             w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
             
-            net_local.load_state_dict(w_local)
             if (args.cl):
+                net_local.load_state_dict(w_local)
                 CL(net_local, 'normal'+str(iter_))
             if (iter_) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
-                # print("Saving")
+                # TODO 2024-10-16 git.V.9a147: not saving all clients after frac changing
                 current_status += "saving"
                 pbar.set_postfix_str(current_status)
                 torch.save(w_local, os.path.join(
                     base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter_, idx)))
-
+        
+        current_status = ""
         for idx in np.intersect1d(idxs_users, attackers):
             # attack
             # rb weight
             if args.debug:
-                # print(idx, "normal training") if args.attack_type == "peace" else print(idx, "attacking")
                 current_status = f"attacking {idx} {iter_ >= start_attack_round or args.attack_type != 'peace'}"
                 pbar.set_postfix_str(current_status)
             if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
                 idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
                 if args.debug:
-                    # print(idx, "penalty", idxs_weight_dict[idx])
                     current_status += f"penalty {idx}"
                     pbar.set_postfix_str(current_status)
-            # if idxs_weight_dict[idx] < 10:
-            #     continue
+            
             user_weight += idxs_weight_dict[idx]
             local = LocalUpdate(
                 args=args, dataset=dataset_train, idxs=dict_users_train[idx])
@@ -230,38 +226,18 @@ if __name__ == '__main__':
             loss_locals.append(copy.deepcopy(loss))
 
             if clipping:
-                d_w = copy.deepcopy(w_local)
-                for k in w_local.keys():
-                    d_w[k] = w_local[k] - net_local.state_dict()[k]
-                d_n = copy.deepcopy(w_local)
-                for k in w_local.keys():
-                    d_n[k] = torch.nn.functional.normalize(
-                        d_w[k].float(), dim=0)
-                for k in w_local.keys():
-                    w_local[k] = w_local[k] - \
-                        (torch.nn.functional.normalize(
-                            d_n[k].float(), dim=0)).long()
+                w_local = clipping(w_local, net_local)
 
             if scale:
                 for k in w_local.keys():
                     w_local[k] = len(idxs_users)*w_local[k] - (len(idxs_users)-1)*net_local.to(args.device).state_dict()[k]
 
-            # if w_glob is None:
-            #     w_glob = copy.deepcopy(w_local)
-            #     for k in w_glob.keys():
-            #         w_glob[k] *= idxs_weight_dict[idx]
-            # else:
-            #     for k in w_glob.keys():
-            #         # w_glob[k] += w_local[k] * idxs_weight_dict[idx]
-            #         #                     w_glob[k] += w_local[k]
-            #         w_glob[k] += w_local[k] * idxs_weight_dict[idx]
             if not args.no_attack_on_attack:
                 w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
 
-            net_local.load_state_dict(w_local)
-            if (args.cl):
+            if args.cl:
+                net_local.load_state_dict(w_local)
                 CL(net_local, 'attack'+str(iter_))
-            # TODO 2024-10-16 git.V.9a147: not saving all clients after frac changing
             if (iter_) % args.local_saving_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
                 # print("Saving")
                 current_status += "saving"
