@@ -27,7 +27,9 @@ def args_parser():
     parser.add_argument('--lr_decay', type=float, default=1.0, help="learning rate decay per round, 'lr *= args.lr_decay'")
     
     #attack
-    parser.add_argument('--no_attack_on_attack', action='store_true', help="do not merge attack clients")
+    # no_attack_on_attack cause averaged weight computing error
+    # under development
+    parser.add_argument('--no_attack_on_attack', action='store_true', help="do not upload attack weights by attackers")
     parser.add_argument('--portion', type=float, default=0.3, help="the fraction of attackers")
     parser.add_argument('--data_portion', type=float, default=0.7, help="the fraction of poison in a batch of data")
     parser.add_argument('--start_attack', type=int, default=1, help="attack beginning epoch")
@@ -102,7 +104,7 @@ def args_parser():
     parser.add_argument('--batch_gen', type=int, default=-1, help='dont merge and repeat training after epoch > batch_gen')
 
     # analysis
-    parser.add_argument('--cl', type=int, default=0, help='perform channel lipschitz distance recording')
+    parser.add_argument('--cl', type=int, default=0, help='perform channel lipschitz distance recording, 0 == not performing')
 
     
     parser.add_argument('--comment', type=str, default="none", help="leave a comment")

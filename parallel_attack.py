@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.10
+import concurrent.futures
+from joblib import Parallel, delayed
 import copy
 import datetime
 import gc
@@ -26,26 +28,55 @@ from utils.evaluate import defense
 from utils.options import args_parser
 from utils.train_utils import get_data, get_model, getWglob, getWglobKrum
 
-def train_user(idx, idxs_weight_dict, net_glob, args, dataset_train, dict_users_train, rb_range, robust_strategy, rb_list, clipping, lr, iter_, with_local_save, base_dir, pr):
+def train_normal(idx, idxs_weight_dict, net_glob, args, dataset_train, dict_users_train, rb_range, robust_strategy, rb_list, lr, iter_, with_local_save, save_interval, base_dir, pr):
     # Initialize local variables
-    current_status = ""
     if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
-        current_status += f"penalty {idx}"
         idxs_weight_dict[idx] = int(idxs_weight_dict[idx] * pr)
     
     # Training and weight updating for the user
-    user_weight = idxs_weight_dict[idx]
     local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users_train[idx])
     net_local = copy.deepcopy(net_glob)
     w_local, loss = local.train(net=net_local.to(args.device), lr=lr)
     
-    if clipping:
+    if args.clipping:
         w_local = clipping(w_local, net_local)
     
     # Save model if needed
-    if args.local_saving_interval and iter_ % args.local_saving_interval == 0 and with_local_save:
-        torch.save(w_local, os.path.join(base_dir, 'local_normal_save', f'iter_{iter_}_normal_{idx}.pt'))
+    if (iter_) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
+        torch.save(w_local, os.path.join(
+                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter_, idx)))
     
+    return idx, w_local, idxs_weight_dict[idx], loss
+
+def train_attacker(idx, idxs_weight_dict, net_glob, args, dataset_train, dict_users_train, rb_range, robust_strategy, rb_list, lr, iter_, with_local_save, start_attack_round, idxs_users, base_dir, pr):
+    # Initialize local variables
+    if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
+        idxs_weight_dict[idx] = int(idxs_weight_dict[idx] * pr)
+    
+    # Training and weight updating for the attacker
+    local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users_train[idx])
+    net_local = copy.deepcopy(net_glob)
+    
+    # Select training mode based on attack type and round
+    if args.attack_type != "peace" and iter_ >= start_attack_round:
+        w_local, loss = local.train_attack_pattern(net=net_local.to(args.device), lr=lr, args=args, idx=idx)
+    else:
+        w_local, loss = local.train(net=net_local.to(args.device), lr=lr)
+    
+    if clipping:
+        w_local = clipping(w_local, net_local)
+    
+    if args.scale:
+        for k in w_local.keys():
+            w_local[k] = len(idxs_users) * w_local[k] - (len(idxs_users) - 1) * net_local.to(args.device).state_dict()[k]
+    
+    # Save model if needed
+    if args.local_saving_interval and iter_ % args.local_saving_interval == 0 and with_local_save:
+        torch.save(w_local, os.path.join(base_dir, 'local_attack_save', f'iter_{iter_}_attack_{idx}.pt'))
+    
+    if args.no_attack_on_attack:
+        w_local = net_glob.state_dict()
+
     return idx, w_local, idxs_weight_dict[idx], loss
 
 if __name__ == '__main__':
@@ -53,6 +84,7 @@ if __name__ == '__main__':
     args = args_parser()
     args.device = torch.device('cuda:{}'.format(
         args.gpu) if torch.cuda.is_available() and args.gpu != -1 else 'cpu')
+    njobs = 12
 
     now = datetime.datetime.now()
     base_dir = os.path.join(args.results_save,args.dataset, '{}_iid{}_num{}_C{}_le{}_DBA{}'.format(args.model, args.iid, args.num_users, args.frac, args.local_ep, args.dba), 'shard{}'.format(args.shard_per_user), args.attack_type+now.strftime("%m-%d--%H-%M-%S"))
@@ -103,7 +135,6 @@ if __name__ == '__main__':
     results = []
 
     clipping = args.clipping
-    scale = args.scale
     attack_portion = args.portion
     argsDict = args.__dict__
     atk_label = args.label
@@ -164,79 +195,36 @@ if __name__ == '__main__':
             pass
             # logger.info([(i, idxs_weight_dict[i]) for i in idxs_users])
 
+        current_status = "local training"
+        pbar.set_postfix_str(current_status)
+
         # for idx in np.random.choice(norms, max(int(args.frac * len(norms)), 1), replace=False):
-        current_status = ""
-        for idx in np.intersect1d(idxs_users, norms):
-            # normal
-            current_status = f"normal training {idx}"
-            pbar.set_postfix_str(current_status)
-            if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
-                current_status += f"penalty {idx}"
-                pbar.set_postfix_str(current_status)
-                idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
-            user_weight += idxs_weight_dict[idx]
-            local = LocalUpdate(
-                args=args, dataset=dataset_train, idxs=dict_users_train[idx])
-            net_local = copy.deepcopy(net_glob)
+        results = Parallel(n_jobs=-1)(
+            delayed(train_normal)(
+                idx, idxs_weight_dict, net_glob, args, dataset_train, 
+                dict_users_train, rb_range, robust_strategy, rb_list, lr, iter_, 
+                with_local_save, save_interval, base_dir, pr
+                )for idx in np.intersect1d(idxs_users, norms)
+        )
+        for idx, w_local, weight, loss in results:
+            w_glob_list.append([idx, w_local, weight])
+            user_weight += weight
+            loss_locals.append(loss)
 
-            w_local, loss = local.train(net=net_local.to(args.device), lr=lr)
-            loss_locals.append(copy.deepcopy(loss))
-
-            if clipping:
-                w_local = clipping(w_local, net_local)
-                
-            w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
-            
-            if (iter_) % args.local_saving_interval == 0 and idx % save_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
-                # TODO 2024-10-16 git.V.9a147: not saving all clients after frac changing
-                current_status += "saving"
-                pbar.set_postfix_str(current_status)
-                torch.save(w_local, os.path.join(
-                    base_dir, 'local_normal_save', 'iter_{}_normal_{}.pt'.format(iter_, idx)))
+        current_status = "local attacking"
+        pbar.set_postfix_str(current_status)
         
-        current_status = ""
-        for idx in np.intersect1d(idxs_users, attackers):
-            # attack
-            # rb weight
-            if args.debug:
-                current_status = f"attacking {idx} {iter_ >= start_attack_round or args.attack_type != 'peace'}"
-                pbar.set_postfix_str(current_status)
-            if (iter_ in rb_range) and robust_strategy and rb_list[idx]:
-                idxs_weight_dict[idx] = int(idxs_weight_dict[idx]*pr)
-                if args.debug:
-                    current_status += f"penalty {idx}"
-                    pbar.set_postfix_str(current_status)
-            
-            user_weight += idxs_weight_dict[idx]
-            local = LocalUpdate(
-                args=args, dataset=dataset_train, idxs=dict_users_train[idx])
-            net_local = copy.deepcopy(net_glob)
-
-            if args.attack_type != "peace" and iter_ >= start_attack_round:
-                # TODO 2024-09-20 git.V.3edc9: attack type
-                w_local, loss = local.train_attack_pattern(
-                    net=net_local.to(args.device), lr=lr, args=args, idx=idx)
-            else:
-                w_local, loss = local.train(
-                    net=net_local.to(args.device), lr=lr)
-            loss_locals.append(copy.deepcopy(loss))
-
-            if clipping:
-                w_local = clipping(w_local, net_local)
-
-            if scale:
-                for k in w_local.keys():
-                    w_local[k] = len(idxs_users)*w_local[k] - (len(idxs_users)-1)*net_local.to(args.device).state_dict()[k]
-
-            if not args.no_attack_on_attack:
-                w_glob_list.append([idx, w_local, idxs_weight_dict[idx]])
-
-            if (iter_) % args.local_saving_interval == 0 and iter_ >= args.local_saving_start and with_local_save:
-                # print("Saving")
-                current_status += "saving"
-                pbar.set_postfix_str(current_status)
-                torch.save(w_local, os.path.join(
-                    base_dir, 'local_attack_save', 'iter_{}_attack_{}.pt'.format(iter_, idx)))
+        results = Parallel(n_jobs=-1)(
+            delayed(train_attacker)(
+                idx, idxs_weight_dict, net_glob, args, dataset_train,
+                dict_users_train, rb_range, robust_strategy, rb_list, lr, iter_, 
+                start_attack_round, idxs_users, base_dir, pr
+            ) for idx in np.intersect1d(idxs_users, attackers)
+        )
+        for idx, w_local, weight, loss in results:
+            w_glob_list.append([idx, w_local, weight])
+            user_weight += weight
+            loss_locals.append(loss)
 
         lr *= args.lr_decay
         # print("global weights update")
