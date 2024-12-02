@@ -1,4 +1,4 @@
-epochs: 90
+epochs: 50
 local_ep: 2
 num_users: 100
 frac: 1
@@ -9,26 +9,26 @@ iid: True
 
 dba: False
 
-dataset: cifar10
-model: resnet20
+dataset: mnist
+model: lenet
 
 attack_type: static
-start_attack: 50
+start_attack: 10
 pos_choice: [5,5]
-data_portion: 0.5
+data_portion: 0.7
 pattern_choice: 1
 local_ep_times: 2
 
 no_local_save: False
-local_saving_start: 50
+local_saving_start: 10
 normal_clients_save_interval: 1
 local_saving_interval: 1
 
-global_saving_start: 50
-global_saving_interval: 10
+global_saving_start: 999
+global_saving_interval: 5
 
 results_save: ./fl_pattern_save
-batch_gen: 50
+batch_gen: 10
 
 robust: False
 clipping: False
@@ -36,5 +36,5 @@ rlr: False
 
 cl: False
 
-# load_fed: save_attack_ub/cifar10/resnet20_iidFalse_num100_C0.8_le2_DBAFalse/shard2/pattern09-05--00-32-28/fed/attack_portion0.1_best_30.pt
-# load_begin_epoch: 30
+# load_fed: ./fl_pattern_save/mnist/lenet_iidFalse_num100_C0.8_le2_DBAFalse/shard5/non_attack09-22--01-37-49/fed/attack_portion0_best_10.pt
+# load_begin_epoch: 10

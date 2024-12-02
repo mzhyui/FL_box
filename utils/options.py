@@ -5,20 +5,17 @@
 import argparse
 import yaml
 
-class CustomError(Exception):
-    pass
-
 def args_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help="debug mode")
-    parser.add_argument('--no_attack_on_attack', action='store_true', help="do not merge attack clients")
 
     
     # federated arguments
-    parser.add_argument('--epochs', type=int, default=50, help="rounds of training")
+    parser.add_argument('--epochs', type=int, default=100, help="rounds of training")
     parser.add_argument('--num_users', type=int, default=100, help="number of users: K")
     parser.add_argument('--shard_per_user', type=int, default=5, help="classes per user")
     parser.add_argument('--frac', type=float, default=0.8, help="the fraction of clients per round: C")
+    parser.add_argument('--dynamic_frac', type=float, nargs='+', default=[], help="the fraction of clients changes at round, eg: [50, 0.5, 100, 0.1]")
     parser.add_argument('--local_ep', type=int, default=2, help="the number of local epochs: E")
     parser.add_argument('--local_bs', type=int, default=64, help="local batch size: B")
     parser.add_argument('--bs', type=int, default=128, help="test batch size")
@@ -30,6 +27,9 @@ def args_parser():
     parser.add_argument('--lr_decay', type=float, default=1.0, help="learning rate decay per round, 'lr *= args.lr_decay'")
     
     #attack
+    # no_attack_on_attack cause averaged weight computing error
+    # under development
+    parser.add_argument('--no_attack_on_attack', action='store_true', help="do not upload attack weights by attackers")
     parser.add_argument('--portion', type=float, default=0.3, help="the fraction of attackers")
     parser.add_argument('--data_portion', type=float, default=0.7, help="the fraction of poison in a batch of data")
     parser.add_argument('--start_attack', type=int, default=1, help="attack beginning epoch")
@@ -41,7 +41,7 @@ def args_parser():
     parser.add_argument('--scale', action='store_true', help="do weight scale")
 
     parser.add_argument('--dba', action='store_true', help="dba attack")
-    parser.add_argument('--attack_type', type=str, default="non_attack", help="the attack strategy")
+    parser.add_argument('--attack_type', type=str, default="peace", help="the attack strategy: static, dynamic, peace(do nothing)")
 
     #attacker groups
     parser.add_argument('--groupattack', action='store_true', help="multiply local ep")
@@ -77,6 +77,7 @@ def args_parser():
 
     # other arguments
     parser.add_argument('--dataset', type=str, default='mnist', help="name of dataset")
+    parser.add_argument('--data_augmentation', type=int, default=0, help="use data augmentation")
     parser.add_argument('--iid', action='store_true', help='whether i.i.d or not')
     parser.add_argument('--num_classes', type=int, default=10, help="number of classes")
     parser.add_argument('--num_channels', type=int, default=3, help="number of channels of imges")
@@ -86,24 +87,28 @@ def args_parser():
     parser.add_argument('--print_freq', type=int, default=100, help="print loss frequency during training")
     parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
     parser.add_argument('--test_freq', type=int, default=5, help='how often to test on val set')
+
+    # loading
+    parser.add_argument('--dataset_path', type=str, default='data/', help='dataset loading path')
     parser.add_argument('--load_fed', type=str, default='', help='define pretrained federated model path')
-    parser.add_argument('--load_begin_epoch', type=int, default='0', help='define epochs finished of the loaded fed model')
+    parser.add_argument('--load_begin_epoch', type=int, default=0, help='define epochs finished of the loaded fed model, must < epochs')
 
     # saving
     parser.add_argument('--results_save', type=str, default='./fl_base_save', help='define fed results save folder')
     parser.add_argument('--local_saving_start', type=int, default=0, help='when to start saving local models')
-    parser.add_argument('--local_saving_interval', type=int, default=5, help='save at round % r')
-    parser.add_argument('--normal_clients_save_interval', type=int, default=5, help="save by idx % r")
+    parser.add_argument('--local_saving_interval', type=int, default=1, help='save at round % r')
+    parser.add_argument('--normal_clients_save_interval', type=int, default=5, help="save by idx % r. -1 for (1-portion) / portion")
     parser.add_argument('--global_saving_start', type=int, default=10, help='when to start saving global models')
     parser.add_argument('--global_saving_interval', type=int, default=10, help='save at round % r')
     parser.add_argument('--no_local_save', action='store_true', help="donot keep local model")
-    parser.add_argument('--batch_gen', action='store_true', help='dont merge and repeat training')
+    parser.add_argument('--batch_gen', type=int, default=-1, help='dont merge and repeat training after epoch > batch_gen')
 
     # analysis
-    parser.add_argument('--cl', action='store_true', help='perform channel lipschitz distance recording')
+    parser.add_argument('--cl', type=int, default=0, help='perform channel lipschitz distance recording, 0 == not performing')
 
     
     parser.add_argument('--comment', type=str, default="none", help="leave a comment")
+    parser.add_argument('--log_dir', type=str, default="logs", help="log directory")
     parser.add_argument('--config', type=str, default="", help="load config")
 
     args = parser.parse_args()
@@ -112,6 +117,7 @@ def args_parser():
             parser.set_defaults(**yaml.safe_load(f))
             args = parser.parse_args()
     else:
-        raise CustomError("No config file provided!")
+        raise Exception("No config file provided!")
+        exit(1)
 
     return args

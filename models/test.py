@@ -76,7 +76,7 @@ def test_img_attack_eval(net_g, datatest, args, return_probs=False, user_idx=-1,
     if args.dba and dba:
         pattern_tensor = pattern_tensor_dba[0]+pattern_tensor_dba[1]
     elif args.dba and not dba:
-        pattern_tensor = pattern_tensor_dba1
+        pattern_tensor = pattern_tensor_dba[0]
     else:
         pattern_tensor = pattern_tensor_normal[args.pattern_choice-1]
     # pattern_tensor = [pattern_tensor1,pattern_tensor2][args.pattern_choice-1]

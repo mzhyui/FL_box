@@ -1,30 +1,33 @@
-epochs: 10
+epochs: 30
 local_ep: 2
 num_users: 100
 frac: 0.8
 portion: 0
 debug: True
 
-iid: False
+iid: True
 
 dba: False
 
-dataset: mnist
-model: lenet
+dataset: cifar10
+model: resnet20
 
 attack_type: non_attack
-start_attack: 5
+start_attack: 999
 position_choice: [5,5]
 data_portion: 0.3
 pattern_choice: 1
-local_ep_times: 2
+local_ep_times: 1
 
 no_local_save: True
-local_saving_start: 10
-global_saving_start: 1
-global_saving_rate: 1
+local_saving_start: 999
+normal_clients_save_interval: 1
+local_saving_interval: 1
 
-results_save: ./fl_pattern_save
+global_saving_start: 10
+global_saving_interval: 1
+
+results_save: /root/autodl-tmp/fl_pattern_save
 
 robust: False
 clipping: False

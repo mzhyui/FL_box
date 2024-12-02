@@ -2,6 +2,7 @@
 data/
 *.bk/
 save_attack_ub
+fl_*/
 rb_root/*
 # *.yaml
 
