@@ -5,6 +5,7 @@ save_attack_ub
 fl_*/
 rb_root/*
 # *.yaml
+.codemap/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
